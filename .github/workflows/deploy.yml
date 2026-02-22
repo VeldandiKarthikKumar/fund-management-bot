@@ -1,0 +1,54 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPO: fund-management-bot
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write   # Required for OIDC token request
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region:     ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        env:
+          REGISTRY:   ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG:  ${{ github.sha }}
+        run: |
+          docker build -t $REGISTRY/$ECR_REPO:$IMAGE_TAG .
+          docker tag $REGISTRY/$ECR_REPO:$IMAGE_TAG $REGISTRY/$ECR_REPO:latest
+          docker push $REGISTRY/$ECR_REPO:$IMAGE_TAG
+          docker push $REGISTRY/$ECR_REPO:latest
+          echo "image=$REGISTRY/$ECR_REPO:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Force ECS service redeployment
+        run: |
+          aws ecs update-service \
+            --cluster fundbot-prod \
+            --service fundbot-prod-slack-bot \
+            --force-new-deployment
+
+      - name: Wait for deployment to stabilise
+        run: |
+          aws ecs wait services-stable \
+            --cluster fundbot-prod \
+            --services fundbot-prod-slack-bot

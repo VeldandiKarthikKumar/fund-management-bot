@@ -1,0 +1,55 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "claude/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: fundbot_test
+          POSTGRES_USER: fundbot
+          POSTGRES_PASSWORD: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check src/ tests/
+
+      - name: Type check
+        run: mypy src/ --ignore-missing-imports
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://fundbot:test@localhost:5432/fundbot_test
+          ZERODHA_API_KEY: test_key
+          ZERODHA_API_SECRET: test_secret
+          ZERODHA_REDIRECT_URL: http://localhost/callback
+          SLACK_BOT_TOKEN: xoxb-test
+          SLACK_APP_TOKEN: xapp-test
+          SLACK_SIGNING_SECRET: test-secret
+          SLACK_TRADING_CHANNEL: "#test"
+          FUND_SIZE_INR: "100000"
+        run: pytest tests/ -v --cov=src --cov-report=term-missing
