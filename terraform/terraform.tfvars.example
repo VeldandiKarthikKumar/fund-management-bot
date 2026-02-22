@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars (never commit that file)
+
+aws_region            = "ap-south-1"
+environment           = "prod"
+
+zerodha_api_key       = "your_key"
+zerodha_api_secret    = "your_secret"
+zerodha_redirect_url  = "https://your-domain.com/zerodha/callback"
+
+slack_bot_token       = "xoxb-..."
+slack_app_token       = "xapp-..."
+slack_signing_secret  = "your-signing-secret"
+slack_trading_channel = "#trading-signals"
+
+db_username           = "fundbot"
+db_password           = "strong-password-here"
+fund_size_inr         = "500000"

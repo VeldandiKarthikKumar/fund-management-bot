@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: fundbot
+      POSTGRES_USER: fundbot
+      POSTGRES_PASSWORD: fundbot_local
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fundbot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  slack-bot:
+    build: .
+    command: python -m src.slack.app
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://fundbot:fundbot_local@db:5432/fundbot
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app  # Hot reload during development
+
+  # Run a specific pipeline manually:
+  # docker-compose run --rm pipeline python -m src.pipelines.pre_market
+  pipeline:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://fundbot:fundbot_local@db:5432/fundbot
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["manual"]
+
+volumes:
+  pgdata:
