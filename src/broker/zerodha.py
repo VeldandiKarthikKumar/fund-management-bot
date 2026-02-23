@@ -1,9 +1,9 @@
 """
 Zerodha Kite Connect adapter.
 """
+
 import logging
 from datetime import datetime
-from typing import Optional
 
 import pandas as pd
 from kiteconnect import KiteConnect
@@ -27,7 +27,9 @@ class ZerodhaAdapter(BrokerBase):
 
     def authenticate(self, request_token: str) -> str:
         settings = get_settings()
-        data = self._kite.generate_session(request_token, api_secret=settings.zerodha_api_secret)
+        data = self._kite.generate_session(
+            request_token, api_secret=settings.zerodha_api_secret
+        )
         access_token = data["access_token"]
         self.set_access_token(access_token)
         logger.info("Zerodha session created successfully.")
@@ -124,5 +126,3 @@ class ZerodhaAdapter(BrokerBase):
 
     def get_positions(self) -> list[dict]:
         return self._kite.positions().get("net", [])
-
-

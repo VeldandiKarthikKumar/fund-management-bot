@@ -17,6 +17,7 @@ What it detects:
 
 Both Angel One and Zerodha field names are handled; the code tries both.
 """
+
 from __future__ import annotations
 
 import logging
@@ -36,11 +37,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SyncResult:
     """Summary of every change the sync detected."""
-    new_positions: list[dict]    = field(default_factory=list)   # Buys done in broker, not in DB
-    closed_positions: list[dict] = field(default_factory=list)   # Sells done in broker, not in DB
-    fund_balance_inr: float      = 0.0
-    fund_change_inr: float       = 0.0   # positive = added, negative = withdrawn
-    errors: list[str]            = field(default_factory=list)
+
+    new_positions: list[dict] = field(
+        default_factory=list
+    )  # Buys done in broker, not in DB
+    closed_positions: list[dict] = field(
+        default_factory=list
+    )  # Sells done in broker, not in DB
+    fund_balance_inr: float = 0.0
+    fund_change_inr: float = 0.0  # positive = added, negative = withdrawn
+    errors: list[str] = field(default_factory=list)
 
     @property
     def has_position_changes(self) -> bool:
@@ -69,6 +75,7 @@ def run_sync(
 
 # ── Position sync ─────────────────────────────────────────────────────────────
 
+
 def _sync_positions(
     broker: "BrokerBase",
     session: "Session",
@@ -78,7 +85,7 @@ def _sync_positions(
 
     # Fetch from broker — holdings = delivery/demat; positions = open MIS/CNC
     try:
-        broker_holdings  = broker.get_holdings()
+        broker_holdings = broker.get_holdings()
         broker_positions = broker.get_positions()
     except Exception as e:
         msg = f"Failed to fetch broker state: {e}"
@@ -92,24 +99,20 @@ def _sync_positions(
     broker_map: dict[str, dict] = {}
     for raw in broker_holdings + broker_positions:
         symbol = raw.get("tradingsymbol") or raw.get("symbol", "")
-        qty = int(
-            raw.get("authorisedquantity") or
-            raw.get("quantity") or
-            0
-        )
+        qty = int(raw.get("authorisedquantity") or raw.get("quantity") or 0)
         if not symbol or qty <= 0:
             continue
         broker_map[symbol] = {
-            "quantity":  qty,
-            "avg_price": float(raw.get("averageprice") or raw.get("average_price") or 0),
-            "ltp":       float(raw.get("ltp") or raw.get("last_price") or 0),
+            "quantity": qty,
+            "avg_price": float(
+                raw.get("averageprice") or raw.get("average_price") or 0
+            ),
+            "ltp": float(raw.get("ltp") or raw.get("last_price") or 0),
         }
 
     # All positions currently marked open in the DB
     db_open: list[Position] = (
-        session.query(Position)
-        .filter(Position.status == PositionStatus.OPEN)
-        .all()
+        session.query(Position).filter(Position.status == PositionStatus.OPEN).all()
     )
     db_map: dict[str, Position] = {p.symbol: p for p in db_open}
 
@@ -133,13 +136,17 @@ def _sync_positions(
             )
             session.add(new_pos)
             session.flush()
-            result.new_positions.append({
-                "symbol":    symbol,
-                "quantity":  bp["quantity"],
-                "avg_price": avg,
-                "ltp":       bp["ltp"],
-            })
-            logger.info(f"Sync: External buy — {symbol} ×{bp['quantity']} @ ₹{avg:,.2f}")
+            result.new_positions.append(
+                {
+                    "symbol": symbol,
+                    "quantity": bp["quantity"],
+                    "avg_price": avg,
+                    "ltp": bp["ltp"],
+                }
+            )
+            logger.info(
+                f"Sync: External buy — {symbol} ×{bp['quantity']} @ ₹{avg:,.2f}"
+            )
         except Exception as e:
             msg = f"Failed to create synced position for {symbol}: {e}"
             logger.error(msg)
@@ -155,22 +162,24 @@ def _sync_positions(
             pnl_inr = (exit_price - db_pos.entry_price) * db_pos.quantity
             pnl_pct = (exit_price - db_pos.entry_price) / db_pos.entry_price * 100
 
-            db_pos.status      = PositionStatus.CLOSED
-            db_pos.exit_price  = exit_price
-            db_pos.exit_date   = datetime.utcnow()
+            db_pos.status = PositionStatus.CLOSED
+            db_pos.exit_price = exit_price
+            db_pos.exit_date = datetime.utcnow()
             db_pos.exit_reason = ExitReason.MANUAL
-            db_pos.pnl_inr     = round(pnl_inr, 2)
-            db_pos.pnl_pct     = round(pnl_pct, 2)
-            db_pos.held_days   = (datetime.utcnow() - db_pos.entry_date).days
+            db_pos.pnl_inr = round(pnl_inr, 2)
+            db_pos.pnl_pct = round(pnl_pct, 2)
+            db_pos.held_days = (datetime.utcnow() - db_pos.entry_date).days
 
-            result.closed_positions.append({
-                "symbol":      symbol,
-                "entry_price": db_pos.entry_price,
-                "exit_price":  exit_price,
-                "pnl_inr":     round(pnl_inr, 2),
-                "pnl_pct":     round(pnl_pct, 2),
-                "held_days":   db_pos.held_days,
-            })
+            result.closed_positions.append(
+                {
+                    "symbol": symbol,
+                    "entry_price": db_pos.entry_price,
+                    "exit_price": exit_price,
+                    "pnl_inr": round(pnl_inr, 2),
+                    "pnl_pct": round(pnl_pct, 2),
+                    "held_days": db_pos.held_days,
+                }
+            )
             logger.info(
                 f"Sync: External sell — {symbol}, "
                 f"P&L ₹{pnl_inr:+,.0f} ({pnl_pct:+.1f}%)"
@@ -185,6 +194,7 @@ def _sync_positions(
 
 # ── Fund balance sync ─────────────────────────────────────────────────────────
 
+
 def _sync_funds(
     broker: "BrokerBase",
     result: SyncResult,
@@ -194,7 +204,7 @@ def _sync_funds(
     try:
         balance = _fetch_balance(broker)
         result.fund_balance_inr = balance
-        result.fund_change_inr  = balance - last_known_balance
+        result.fund_change_inr = balance - last_known_balance
         if result.has_fund_change:
             direction = "added" if result.fund_change_inr > 0 else "withdrawn"
             logger.info(

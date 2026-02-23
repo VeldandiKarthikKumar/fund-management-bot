@@ -9,16 +9,16 @@ What it does:
   5. Posts end-of-day review to Slack
   6. Updates DailyJournal with post-market summary
 """
+
 import logging
-from datetime import datetime, date
+from datetime import date
 
 from src.broker import get_broker
 from src.config import get_settings
 from src.db.connection import get_session
-from src.db.models import SuggestionStatus, ExitReason
+from src.db.models import ExitReason
 from src.db.repositories.performance import PerformanceRepository
 from src.db.repositories.positions import PositionRepository
-from src.db.repositories.suggestions import SuggestionRepository
 from src.learning.tracker import OutcomeTracker
 
 logger = logging.getLogger(__name__)
@@ -75,14 +75,14 @@ def _format_eod_review(
 def run() -> dict:
     """Entry point — called by scheduler at 15:35 IST."""
     logger.info("Starting post-market pipeline")
-    broker   = get_broker()
+    broker = get_broker()
     settings = get_settings()
 
     with get_session() as session:
-        pos_repo  = PositionRepository(session)
-        sugg_repo = SuggestionRepository(session)
+        pos_repo = PositionRepository(session)
+
         perf_repo = PerformanceRepository(session)
-        tracker   = OutcomeTracker(session)
+        tracker = OutcomeTracker(session)
 
         # 1. Get live closing prices for open positions
         open_positions = pos_repo.get_open()
@@ -101,10 +101,12 @@ def run() -> dict:
             if not quote:
                 continue
             price = quote.last_price
-            hit_target = (pos.action == "BUY" and price >= pos.target) or \
-                         (pos.action == "SELL" and price <= pos.target)
-            hit_stop   = (pos.action == "BUY" and price <= pos.current_stop) or \
-                         (pos.action == "SELL" and price >= pos.current_stop)
+            hit_target = (pos.action == "BUY" and price >= pos.target) or (
+                pos.action == "SELL" and price <= pos.target
+            )
+            hit_stop = (pos.action == "BUY" and price <= pos.current_stop) or (
+                pos.action == "SELL" and price >= pos.current_stop
+            )
             if hit_target:
                 closed = pos_repo.close(pos.id, price, ExitReason.TARGET_HIT)
                 closed_today.append(closed)
@@ -144,9 +146,9 @@ def run() -> dict:
         )
 
         return {
-            "review":         review,
-            "daily_pnl":      daily_pnl,
-            "closed_today":   len(closed_today),
+            "review": review,
+            "daily_pnl": daily_pnl,
+            "closed_today": len(closed_today),
             "open_positions": portfolio["count"],
         }
 

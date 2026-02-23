@@ -2,6 +2,7 @@
 Integration tests for DB models and repositories.
 Requires a running PostgreSQL instance (provided by docker-compose in CI).
 """
+
 import os
 import pytest
 from datetime import datetime
@@ -9,12 +10,14 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.db.models import Base, TradeSuggestion, Position, SuggestionStatus
+from src.db.models import Base, TradeSuggestion, SuggestionStatus
 
 
 @pytest.fixture(scope="session")
 def engine():
-    db_url = os.environ.get("DATABASE_URL", "postgresql://fundbot:test@localhost:5432/fundbot_test")
+    db_url = os.environ.get(
+        "DATABASE_URL", "postgresql://fundbot:test@localhost:5432/fundbot_test"
+    )
     eng = create_engine(db_url)
     Base.metadata.create_all(eng)
     yield eng

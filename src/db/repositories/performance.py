@@ -1,6 +1,6 @@
 """CRUD operations for SignalPerformance and DailyJournal."""
+
 from datetime import datetime, date
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,9 @@ class PerformanceRepository:
 
     # ── SignalPerformance ──────────────────────────────────────────────────
 
-    def get_or_create_signal(self, signal_name: str, timeframe: str) -> SignalPerformance:
+    def get_or_create_signal(
+        self, signal_name: str, timeframe: str
+    ) -> SignalPerformance:
         sp = (
             self.session.query(SignalPerformance)
             .filter_by(signal_name=signal_name, timeframe=timeframe)
@@ -25,9 +27,15 @@ class PerformanceRepository:
             self.session.flush()
         return sp
 
-    def record_signal_outcome(self, signal_name: str, timeframe: str,
-                               was_executed: bool, pnl_pct: float,
-                               risk_reward: float, held_days: int) -> SignalPerformance:
+    def record_signal_outcome(
+        self,
+        signal_name: str,
+        timeframe: str,
+        was_executed: bool,
+        pnl_pct: float,
+        risk_reward: float,
+        held_days: int,
+    ) -> SignalPerformance:
         sp = self.get_or_create_signal(signal_name, timeframe)
         sp.total_signals += 1
         if was_executed:
@@ -63,8 +71,15 @@ class PerformanceRepository:
             self.session.flush()
         return journal
 
-    def update_pre_market(self, nifty_trend: str, vix: float, gap_pct: float,
-                           key_levels: dict, watchlist: list, summary: str) -> DailyJournal:
+    def update_pre_market(
+        self,
+        nifty_trend: str,
+        vix: float,
+        gap_pct: float,
+        key_levels: dict,
+        watchlist: list,
+        summary: str,
+    ) -> DailyJournal:
         journal = self.get_or_create_today()
         journal.nifty_trend = nifty_trend
         journal.vix_level = vix
@@ -82,8 +97,9 @@ class PerformanceRepository:
         if skipped:
             journal.suggestions_skipped += 1
 
-    def update_post_market(self, pnl_inr: float, pnl_pct: float,
-                            open_positions: int, review: str) -> DailyJournal:
+    def update_post_market(
+        self, pnl_inr: float, pnl_pct: float, open_positions: int, review: str
+    ) -> DailyJournal:
         journal = self.get_or_create_today()
         journal.total_pnl_inr = pnl_inr
         journal.total_pnl_pct = pnl_pct

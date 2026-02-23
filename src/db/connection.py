@@ -1,4 +1,5 @@
 """Database connection and session management."""
+
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine
@@ -12,7 +13,7 @@ def get_engine():
     settings = get_settings()
     return create_engine(
         settings.database_url,
-        pool_pre_ping=True,   # Detect stale connections
+        pool_pre_ping=True,  # Detect stale connections
         pool_size=5,
         max_overflow=10,
     )

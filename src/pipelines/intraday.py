@@ -10,6 +10,7 @@ For swing trading we do NOT need 15-minute tick-chasing. What matters:
 Entry zone is deliberately wide (±1.5%) — swing entries are placed as limit
 orders, not market orders. The bot suggests the zone; the user sets the order.
 """
+
 import logging
 from datetime import datetime
 
@@ -46,27 +47,27 @@ def _check_position_exits(pos_repo: PositionRepository, quotes: dict) -> list[di
             continue
 
         price = quote.last_price
-        hit_stop = (
-            (pos.action == "BUY"  and price <= pos.current_stop) or
-            (pos.action == "SELL" and price >= pos.current_stop)
+        hit_stop = (pos.action == "BUY" and price <= pos.current_stop) or (
+            pos.action == "SELL" and price >= pos.current_stop
         )
-        hit_target = (
-            (pos.action == "BUY"  and price >= pos.target) or
-            (pos.action == "SELL" and price <= pos.target)
+        hit_target = (pos.action == "BUY" and price >= pos.target) or (
+            pos.action == "SELL" and price <= pos.target
         )
 
         if hit_stop or hit_target:
-            alerts.append({
-                "position_id":     pos.id,
-                "symbol":          pos.symbol,
-                "action":          pos.action,
-                "current_price":   price,
-                "entry_price":     pos.entry_price,
-                "stop":            pos.current_stop,
-                "target":          pos.target,
-                "reason":          "target_hit" if hit_target else "stop_hit",
-                "slack_thread_ts": pos.slack_thread_ts,
-            })
+            alerts.append(
+                {
+                    "position_id": pos.id,
+                    "symbol": pos.symbol,
+                    "action": pos.action,
+                    "current_price": price,
+                    "entry_price": pos.entry_price,
+                    "stop": pos.current_stop,
+                    "target": pos.target,
+                    "reason": "target_hit" if hit_target else "stop_hit",
+                    "slack_thread_ts": pos.slack_thread_ts,
+                }
+            )
     return alerts
 
 
@@ -75,31 +76,33 @@ def run() -> dict:
     now = datetime.now()
     logger.info(f"Swing monitor at {now.strftime('%H:%M')}")
 
-    broker   = get_broker()
+    broker = get_broker()
     settings = get_settings()
 
     with get_session() as session:
         perf_repo = PerformanceRepository(session)
-        pos_repo  = PositionRepository(session)
+        pos_repo = PositionRepository(session)
         sugg_repo = SuggestionRepository(session)
 
         # ── 1. Broker sync — always first ───────────────────────────────────
         # Reconciles any trades or fund moves the user did directly in the app.
-        journal      = perf_repo.get_or_create_today()
+        journal = perf_repo.get_or_create_today()
         last_balance = journal.fund_balance_inr or 0.0
-        sync_result  = run_sync(broker, session, last_known_balance=last_balance)
+        sync_result = run_sync(broker, session, last_known_balance=last_balance)
 
         if sync_result.fund_balance_inr:
             journal.fund_balance_inr = sync_result.fund_balance_inr
-            journal.fund_added_inr   = (journal.fund_added_inr or 0.0) + max(0.0, sync_result.fund_change_inr)
-            journal.last_sync_at     = datetime.utcnow()
+            journal.fund_added_inr = (journal.fund_added_inr or 0.0) + max(
+                0.0, sync_result.fund_change_inr
+            )
+            journal.last_sync_at = datetime.utcnow()
 
         # ── 2. Live quotes ───────────────────────────────────────────────────
         watchlist = journal.watchlist_snapshot or []
         if not watchlist:
             logger.info("No pre-market watchlist found; running quick screen")
-            screener  = Screener(broker)
-            setups    = screener.run()
+            screener = Screener(broker)
+            setups = screener.run()
             watchlist = [s.symbol for s in setups[:10]]
 
         try:
@@ -112,12 +115,12 @@ def run() -> dict:
         exit_alerts = _check_position_exits(pos_repo, quotes)
 
         # ── 4. New swing setups entering entry zone ──────────────────────────
-        open_count      = len(pos_repo.get_open())
+        open_count = len(pos_repo.get_open())
         new_suggestions = []
 
         if open_count < settings.max_open_positions:
             screener = Screener(broker)
-            setups   = screener.run(symbols=watchlist)
+            setups = screener.run(symbols=watchlist)
 
             already_suggested = {s.symbol for s in sugg_repo.get_pending_today()}
 
@@ -134,11 +137,15 @@ def run() -> dict:
                         stop=setup.stop_loss,
                         risk_pct=settings.max_risk_per_trade_pct / 100,
                     )
-                    new_suggestions.append({
-                        "setup":    setup,
-                        "quantity": qty,
-                        "risk_inr": round(abs(setup.entry - setup.stop_loss) * qty, 2),
-                    })
+                    new_suggestions.append(
+                        {
+                            "setup": setup,
+                            "quantity": qty,
+                            "risk_inr": round(
+                                abs(setup.entry - setup.stop_loss) * qty, 2
+                            ),
+                        }
+                    )
                     already_suggested.add(setup.symbol)
                     if len(new_suggestions) + open_count >= settings.max_open_positions:
                         break
@@ -150,11 +157,11 @@ def run() -> dict:
         )
 
         return {
-            "exit_alerts":     exit_alerts,
+            "exit_alerts": exit_alerts,
             "new_suggestions": new_suggestions,
-            "open_positions":  open_count,
-            "sync":            sync_result,
-            "quotes":          {s: q.last_price for s, q in quotes.items()},
+            "open_positions": open_count,
+            "sync": sync_result,
+            "quotes": {s: q.last_price for s, q in quotes.items()},
         }
 
 

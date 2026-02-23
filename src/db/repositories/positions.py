@@ -1,6 +1,6 @@
 """CRUD operations for Position."""
+
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -40,9 +40,17 @@ class PositionRepository:
         self.session.flush()
         return position
 
-    def create(self, suggestion_id: int, entry_price: float, quantity: int,
-               symbol: str, action: str, target: float, stop: float,
-               slack_thread_ts: str = "") -> Position:
+    def create(
+        self,
+        suggestion_id: int,
+        entry_price: float,
+        quantity: int,
+        symbol: str,
+        action: str,
+        target: float,
+        stop: float,
+        slack_thread_ts: str = "",
+    ) -> Position:
         position = Position(
             suggestion_id=suggestion_id,
             symbol=symbol,
@@ -72,8 +80,9 @@ class PositionRepository:
             .all()
         )
 
-    def close(self, position_id: int, exit_price: float,
-              reason: ExitReason) -> Position:
+    def close(
+        self, position_id: int, exit_price: float, reason: ExitReason
+    ) -> Position:
         p = self.session.get(Position, position_id)
         p.exit_price = exit_price
         p.exit_date = datetime.utcnow()
@@ -100,9 +109,14 @@ class PositionRepository:
         return {
             "count": len(open_positions),
             "positions": [
-                {"symbol": p.symbol, "action": p.action,
-                 "qty": p.quantity, "entry": p.entry_price,
-                 "stop": p.current_stop, "target": p.target}
+                {
+                    "symbol": p.symbol,
+                    "action": p.action,
+                    "qty": p.quantity,
+                    "entry": p.entry_price,
+                    "stop": p.current_stop,
+                    "target": p.target,
+                }
                 for p in open_positions
             ],
             "total_invested_inr": total_invested,
