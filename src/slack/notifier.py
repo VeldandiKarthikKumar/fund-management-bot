@@ -2,6 +2,7 @@
 Functions that format and send Slack messages.
 All message building lives here — handlers call these, never build blocks inline.
 """
+
 import logging
 
 from src.config import get_settings
@@ -16,16 +17,17 @@ def _channel() -> str:
 
 # ── Message builders ──────────────────────────────────────────────────────
 
+
 def _suggestion_blocks(suggestion: dict, suggestion_db_id: int) -> list[dict]:
     """
     Interactive Slack message for a swing trade setup.
     Entry is a limit-order zone, not a market order — framed accordingly.
     Buttons: Executed (user confirms they placed the order) or Skip.
     """
-    setup     = suggestion["setup"]
-    qty       = suggestion["quantity"]
-    risk      = suggestion["risk_inr"]
-    signals   = ", ".join(s["signal_name"] for s in setup.signals_fired)
+    setup = suggestion["setup"]
+    qty = suggestion["quantity"]
+    risk = suggestion["risk_inr"]
+    signals = ", ".join(s["signal_name"] for s in setup.signals_fired)
     dir_emoji = ":green_circle:" if setup.direction == "BUY" else ":red_circle:"
 
     return [
@@ -94,11 +96,13 @@ def _suggestion_blocks(suggestion: dict, suggestion_db_id: int) -> list[dict]:
 
 def _exit_alert_blocks(alert: dict) -> list[dict]:
     """Exit alert for an open swing position — user confirms close in broker app."""
-    reason_text = "🎯 Target Hit!" if alert["reason"] == "target_hit" else "🛑 Stop Loss Hit!"
-    dir_emoji   = ":green_circle:" if alert["action"] == "BUY" else ":red_circle:"
+    reason_text = (
+        "🎯 Target Hit!" if alert["reason"] == "target_hit" else "🛑 Stop Loss Hit!"
+    )
+    dir_emoji = ":green_circle:" if alert["action"] == "BUY" else ":red_circle:"
 
     entry = alert.get("entry_price", 0)
-    curr  = alert["current_price"]
+    curr = alert["current_price"]
     pnl_pct = ((curr - entry) / entry * 100) if entry else 0
 
     return [
@@ -110,7 +114,10 @@ def _exit_alert_blocks(alert: dict) -> list[dict]:
             "type": "section",
             "text": {"type": "mrkdwn", "text": f"*{reason_text}*"},
             "fields": [
-                {"type": "mrkdwn", "text": f"*Position:*\n{dir_emoji} {alert['action']}"},
+                {
+                    "type": "mrkdwn",
+                    "text": f"*Position:*\n{dir_emoji} {alert['action']}",
+                },
                 {"type": "mrkdwn", "text": f"*Current Price:*\n₹{curr:,.2f}"},
                 {"type": "mrkdwn", "text": f"*Stop:*\n₹{alert['stop']:,.2f}"},
                 {"type": "mrkdwn", "text": f"*Target:*\n₹{alert['target']:,.2f}"},
@@ -168,7 +175,9 @@ def _sync_alert_blocks(sync_result) -> list[dict]:
                 f"Avg ₹{p['avg_price']:,.2f}  LTP ₹{p['ltp']:,.2f}\n"
                 f"    _Default SL/target set — please review and adjust_"
             )
-        blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}})
+        blocks.append(
+            {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
+        )
 
     if sync_result.closed_positions:
         lines = ["*Positions closed in broker (not via bot):*"]
@@ -180,25 +189,30 @@ def _sync_alert_blocks(sync_result) -> list[dict]:
                 f"P&L ₹{pnl_sign}{p['pnl_inr']:,.0f} ({p['pnl_pct']:+.1f}%)  "
                 f"Held {p['held_days']}d"
             )
-        blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}})
+        blocks.append(
+            {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}}
+        )
 
     if sync_result.has_fund_change:
         direction = "added to" if sync_result.fund_change_inr > 0 else "withdrawn from"
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": (
-                    f":moneybag: *₹{abs(sync_result.fund_change_inr):,.0f} {direction} account*  "
-                    f"(balance now ₹{sync_result.fund_balance_inr:,.0f})"
-                ),
-            },
-        })
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": (
+                        f":moneybag: *₹{abs(sync_result.fund_change_inr):,.0f} {direction} account*  "
+                        f"(balance now ₹{sync_result.fund_balance_inr:,.0f})"
+                    ),
+                },
+            }
+        )
 
     return blocks
 
 
 # ── Send functions ────────────────────────────────────────────────────────
+
 
 def post_pre_market_brief(client, brief_text: str) -> str:
     """Post morning briefing. Returns message ts."""
@@ -264,6 +278,7 @@ def post_suggestions(client, setups: list, context: dict):
     """Post multiple suggestions from the pre-market screen."""
     from src.broker import get_broker
     from src.config import get_settings
+
     s = get_settings()
     b = get_broker()
     for setup in setups:
@@ -273,16 +288,19 @@ def post_suggestions(client, setups: list, context: dict):
             stop=setup.stop_loss,
             risk_pct=s.max_risk_per_trade_pct / 100,
         )
-        post_trade_suggestion(client, {
-            "setup":    setup,
-            "quantity": qty,
-            "risk_inr": abs(setup.entry - setup.stop_loss) * qty,
-        })
+        post_trade_suggestion(
+            client,
+            {
+                "setup": setup,
+                "quantity": qty,
+                "risk_inr": abs(setup.entry - setup.stop_loss) * qty,
+            },
+        )
 
 
 def post_exit_alert(client, alert: dict) -> str:
     thread_ts = alert.get("slack_thread_ts", "")
-    blocks    = _exit_alert_blocks(alert)
+    blocks = _exit_alert_blocks(alert)
     try:
         kwargs = dict(
             channel=_channel(),

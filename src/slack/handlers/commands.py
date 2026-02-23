@@ -8,6 +8,7 @@ Slash command handlers.
 /fundbot stats       → signal performance stats
 /fundbot help        → command reference
 """
+
 import logging
 
 from slack_bolt import App
@@ -42,13 +43,14 @@ def register_commands(app: App):
     def _status(respond):
         with get_session() as session:
             perf_repo = PerformanceRepository(session)
-            pos_repo  = PositionRepository(session)
-            journal   = perf_repo.get_or_create_today()
+            pos_repo = PositionRepository(session)
+            journal = perf_repo.get_or_create_today()
             portfolio = pos_repo.get_portfolio_summary()
 
             sync_ts = (
                 journal.last_sync_at.strftime("%H:%M")
-                if journal.last_sync_at else "not yet"
+                if journal.last_sync_at
+                else "not yet"
             )
             fund_line = ""
             if journal.fund_added_inr:
@@ -79,9 +81,10 @@ def register_commands(app: App):
 
             try:
                 from src.broker import get_broker
-                broker  = get_broker()
+
+                broker = get_broker()
                 symbols = [p.symbol for p in pos_repo.get_open()]
-                quotes  = broker.get_quote(symbols) if symbols else {}
+                quotes = broker.get_quote(symbols) if symbols else {}
             except Exception:
                 quotes = {}
 
@@ -92,11 +95,11 @@ def register_commands(app: App):
 
             lines = ["*Open swing positions:*"]
             for p in portfolio["positions"]:
-                quote      = quotes.get(p["symbol"])
+                quote = quotes.get(p["symbol"])
                 curr_price = quote.last_price if quote else None
-                ext_tag    = " _(external)_" if p.get("is_externally_created") else ""
-                price_str  = f"₹{curr_price:,.2f}" if curr_price else "?"
-                pnl_str    = ""
+                ext_tag = " _(external)_" if p.get("is_externally_created") else ""
+                price_str = f"₹{curr_price:,.2f}" if curr_price else "?"
+                pnl_str = ""
                 if curr_price:
                     unreal = (curr_price - p["entry"]) * p["qty"]
                     pnl_str = f"  Unrealised: ₹{unreal:+,.0f}"
@@ -110,7 +113,10 @@ def register_commands(app: App):
 
     def _sync(respond):
         """Manually trigger a broker sync and report what changed."""
-        respond(text=":arrows_counterclockwise: Syncing with broker…", response_type="ephemeral")
+        respond(
+            text=":arrows_counterclockwise: Syncing with broker…",
+            response_type="ephemeral",
+        )
         try:
             from src.broker import get_broker
             from src.broker.sync import run_sync
@@ -120,13 +126,15 @@ def register_commands(app: App):
 
             broker = get_broker()
             with get_session() as session:
-                perf_repo    = PerformanceRepository(session)
-                journal      = perf_repo.get_or_create_today()
+                perf_repo = PerformanceRepository(session)
+                journal = perf_repo.get_or_create_today()
                 last_balance = journal.fund_balance_inr or 0.0
-                result       = run_sync(broker, session, last_known_balance=last_balance)
+                result = run_sync(broker, session, last_known_balance=last_balance)
                 if result.fund_balance_inr:
                     journal.fund_balance_inr = result.fund_balance_inr
-                    journal.fund_added_inr   = (journal.fund_added_inr or 0.0) + max(0.0, result.fund_change_inr)
+                    journal.fund_added_inr = (journal.fund_added_inr or 0.0) + max(
+                        0.0, result.fund_change_inr
+                    )
 
             if result.has_position_changes or result.has_fund_change:
                 notifier.post_sync_alert(slack_app.client, result)
@@ -137,18 +145,23 @@ def register_commands(app: App):
                     f"Balance: ₹{result.fund_balance_inr:,.0f}"
                 )
             else:
-                summary = ":white_check_mark: Sync complete — everything in sync, no changes."
+                summary = (
+                    ":white_check_mark: Sync complete — everything in sync, no changes."
+                )
 
             respond(text=summary, response_type="ephemeral")
         except Exception as e:
             respond(text=f":x: Sync failed: {e}", response_type="ephemeral")
 
     def _manual_run(respond):
-        respond(text=":hourglass: Running swing monitor now…", response_type="ephemeral")
+        respond(
+            text=":hourglass: Running swing monitor now…", response_type="ephemeral"
+        )
         try:
             from src.pipelines.intraday import run
             from src.slack import notifier
             from src.slack.app import app as slack_app
+
             result = run()
             sync = result.get("sync")
             if sync and (sync.has_position_changes or sync.has_fund_change):
@@ -161,14 +174,16 @@ def register_commands(app: App):
                     response_type="ephemeral",
                 )
             else:
-                respond(text=":zzz: No new setups at this time.", response_type="ephemeral")
+                respond(
+                    text=":zzz: No new setups at this time.", response_type="ephemeral"
+                )
         except Exception as e:
             respond(text=f":x: Error: {e}", response_type="ephemeral")
 
     def _stats(respond):
         with get_session() as session:
             perf_repo = PerformanceRepository(session)
-            stats     = perf_repo.get_all_signal_stats()
+            stats = perf_repo.get_all_signal_stats()
 
             if not stats:
                 respond(text="No signal performance data yet.")

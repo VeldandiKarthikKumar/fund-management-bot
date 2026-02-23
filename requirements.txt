@@ -12,7 +12,7 @@ pyotp==2.9.0             # TOTP generation for Angel One 2FA
 # ── Data & Analysis ────────────────────────────────────────────────────────
 pandas==2.2.1
 numpy==1.26.4
-pandas-ta==0.3.14b       # Technical indicators (EMA, RSI, ATR, etc.)
+pandas-ta==0.4.71b0      # Technical indicators (EMA, RSI, ATR, etc.) — requires Python 3.12+ for 0.4.x; pin to last working build
 scipy==1.12.0
 
 # ── Database ───────────────────────────────────────────────────────────────

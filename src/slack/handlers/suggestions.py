@@ -4,12 +4,12 @@ Handles interactive button callbacks for trade suggestions:
   - skip_trade      → user clicked "Skip"
   - more_info       → user wants signal details
 """
+
 import logging
 
 from slack_bolt import App
 
 from src.db.connection import get_session
-from src.db.models import ExitReason, PositionStatus
 from src.db.repositories.positions import PositionRepository
 from src.db.repositories.suggestions import SuggestionRepository
 from src.db.repositories.performance import PerformanceRepository
@@ -23,13 +23,13 @@ def register_suggestion_actions(app: App):
     def handle_execute(ack, body, say, client):
         ack()
         suggestion_id = int(body["actions"][0]["value"])
-        user          = body["user"]["name"]
-        channel       = body["channel"]["id"]
-        message_ts    = body["message"]["ts"]
+        user = body["user"]["name"]
+        channel = body["channel"]["id"]
+        message_ts = body["message"]["ts"]
 
         with get_session() as session:
             sugg_repo = SuggestionRepository(session)
-            pos_repo  = PositionRepository(session)
+            pos_repo = PositionRepository(session)
             perf_repo = PerformanceRepository(session)
 
             s = sugg_repo.mark_executed(suggestion_id)
@@ -87,9 +87,9 @@ def register_suggestion_actions(app: App):
     def handle_skip(ack, body, say, client):
         ack()
         suggestion_id = int(body["actions"][0]["value"])
-        user          = body["user"]["name"]
-        channel       = body["channel"]["id"]
-        message_ts    = body["message"]["ts"]
+        user = body["user"]["name"]
+        channel = body["channel"]["id"]
+        message_ts = body["message"]["ts"]
 
         with get_session() as session:
             sugg_repo = SuggestionRepository(session)
@@ -119,7 +119,7 @@ def register_suggestion_actions(app: App):
     def handle_more_info(ack, body, say):
         ack()
         suggestion_id = int(body["actions"][0]["value"])
-        message_ts    = body["message"]["ts"]
+        message_ts = body["message"]["ts"]
 
         with get_session() as session:
             sugg_repo = SuggestionRepository(session)

@@ -9,6 +9,7 @@ What it does:
   5. Posts a morning briefing to Slack
   6. Persists setup in DailyJournal
 """
+
 import logging
 from datetime import datetime, timedelta
 
@@ -16,7 +17,6 @@ import pandas_ta as ta
 
 from src.broker import get_broker
 from src.analysis.screener import Screener, ScreenerResult
-from src.config import get_settings
 from src.db.connection import get_session
 from src.db.repositories.performance import PerformanceRepository
 from src.db.repositories.suggestions import SuggestionRepository
@@ -29,10 +29,12 @@ def _assess_nifty_trend(broker) -> tuple[str, float]:
     Returns (trend_direction, vix_level).
     trend: "bullish" | "bearish" | "sideways"
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime
+
     try:
         df = broker.get_historical_data(
-            "NIFTY 50", interval="day",
+            "NIFTY 50",
+            interval="day",
             from_date=datetime.now() - timedelta(days=60),
             to_date=datetime.now(),
             exchange="NSE",
@@ -67,11 +69,15 @@ def _get_vix(broker) -> float:
         return 0.0
 
 
-def _build_morning_brief(trend: str, vix: float, top_setups: list[ScreenerResult]) -> str:
+def _build_morning_brief(
+    trend: str, vix: float, top_setups: list[ScreenerResult]
+) -> str:
     """Format the Slack morning briefing message."""
-    trend_emoji = {"bullish": ":chart_with_upwards_trend:",
-                   "bearish": ":chart_with_downwards_trend:",
-                   "sideways": ":left_right_arrow:"}.get(trend, ":question:")
+    trend_emoji = {
+        "bullish": ":chart_with_upwards_trend:",
+        "bearish": ":chart_with_downwards_trend:",
+        "sideways": ":left_right_arrow:",
+    }.get(trend, ":question:")
 
     lines = [
         f"*Good morning! Pre-market brief — {datetime.now().strftime('%d %b %Y')}*",
@@ -82,7 +88,9 @@ def _build_morning_brief(trend: str, vix: float, top_setups: list[ScreenerResult
     ]
 
     for i, setup in enumerate(top_setups, 1):
-        direction_emoji = ":green_circle:" if setup.direction == "BUY" else ":red_circle:"
+        direction_emoji = (
+            ":green_circle:" if setup.direction == "BUY" else ":red_circle:"
+        )
         signals = ", ".join(s["signal_name"] for s in setup.signals_fired)
         lines.append(
             f"{i}. {direction_emoji} *{setup.symbol}*  "
@@ -103,8 +111,7 @@ def _build_morning_brief(trend: str, vix: float, top_setups: list[ScreenerResult
 def run():
     """Entry point — called by scheduler or Lambda."""
     logger.info("Starting pre-market pipeline")
-    broker   = get_broker()
-    settings = get_settings()
+    broker = get_broker()
 
     # 1. Market context
     trend, vix = _assess_nifty_trend(broker)
@@ -116,7 +123,7 @@ def run():
 
     # 3. Take top 10 for watchlist, top 5 for briefing
     top_10 = all_setups[:10]
-    top_5  = all_setups[:5]
+    top_5 = all_setups[:5]
 
     # 4. Persist to daily journal
     with get_session() as session:
@@ -131,7 +138,7 @@ def run():
         perf_repo.update_pre_market(
             nifty_trend=trend,
             vix=vix,
-            gap_pct=0.0,   # SGX Nifty gap — TODO: add SGX data source
+            gap_pct=0.0,  # SGX Nifty gap — TODO: add SGX data source
             key_levels={},
             watchlist=[s.symbol for s in top_10],
             summary=f"Nifty {trend}, VIX {vix:.1f}, {len(all_setups)} setups found",
@@ -151,5 +158,6 @@ def run():
 
 if __name__ == "__main__":
     import structlog
+
     structlog.configure()
     run()

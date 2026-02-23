@@ -2,12 +2,12 @@
 Stock screener: runs all signals against the watchlist and
 returns ranked candidates with composite scores.
 """
+
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Optional
 
-import pandas as pd
 
 from src.analysis.signals.base import BaseSignal, SignalResult
 from src.analysis.signals.ema_crossover import EMACrossoverSignal
@@ -44,7 +44,7 @@ def _build_signals() -> list[BaseSignal]:
 
 class Screener:
     def __init__(self, broker: BrokerBase):
-        self.broker  = broker
+        self.broker = broker
         self.signals = _build_signals()
         self.settings = get_settings()
 
@@ -58,13 +58,15 @@ class Screener:
         results: list[ScreenerResult] = []
 
         from_date = datetime.now() - timedelta(days=180)
-        to_date   = datetime.now()
+        to_date = datetime.now()
 
         for symbol in symbols:
             try:
                 df = self.broker.get_historical_data(
-                    symbol, interval="day",
-                    from_date=from_date, to_date=to_date,
+                    symbol,
+                    interval="day",
+                    from_date=from_date,
+                    to_date=to_date,
                 )
                 if df.empty or len(df) < 60:
                     continue
@@ -87,7 +89,9 @@ class Screener:
             # All fired signals must agree on direction (no conflicting signals)
             directions = {s.direction for s in fired}
             if len(directions) > 1:
-                logger.debug(f"{symbol}: conflicting signal directions {directions}, skipping")
+                logger.debug(
+                    f"{symbol}: conflicting signal directions {directions}, skipping"
+                )
                 continue
 
             direction = fired[0].direction
@@ -101,17 +105,19 @@ class Screener:
             # Use the signal with highest strength for price levels
             best = max(fired, key=lambda s: s.strength)
 
-            results.append(ScreenerResult(
-                symbol=symbol,
-                direction=direction,
-                composite_score=round(composite, 3),
-                entry=best.entry,
-                target=best.target,
-                stop_loss=best.stop_loss,
-                risk_reward=best.risk_reward,
-                signals_fired=[s.to_dict() for s in fired],
-                timeframe=best.timeframe,
-            ))
+            results.append(
+                ScreenerResult(
+                    symbol=symbol,
+                    direction=direction,
+                    composite_score=round(composite, 3),
+                    entry=best.entry,
+                    target=best.target,
+                    stop_loss=best.stop_loss,
+                    risk_reward=best.risk_reward,
+                    signals_fired=[s.to_dict() for s in fired],
+                    timeframe=best.timeframe,
+                )
+            )
 
         results.sort(key=lambda r: r.composite_score, reverse=True)
         logger.info(f"Screener found {len(results)} setups from {len(symbols)} symbols")

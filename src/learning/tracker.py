@@ -9,8 +9,8 @@ For each signal that contributed to the trade, records:
 
 This data feeds the calibrator which adjusts signal weights.
 """
+
 import logging
-from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class OutcomeTracker:
     def __init__(self, session: Session):
-        self.session   = session
+        self.session = session
         self.perf_repo = PerformanceRepository(session)
 
     def record_close(self, position: Position) -> None:
@@ -42,17 +42,19 @@ class OutcomeTracker:
         if not suggestion or not suggestion.signals_fired:
             return
 
-        pnl_pct   = position.pnl_pct or 0.0
+        pnl_pct = position.pnl_pct or 0.0
         held_days = position.held_days or 0
 
         # Actual R:R = realised profit / risk taken
-        risk       = abs(suggestion.entry_price - suggestion.stop_loss)
-        realised   = abs((position.exit_price or suggestion.entry_price) - suggestion.entry_price)
-        actual_rr  = round(realised / risk, 2) if risk > 0 else 0.0
+        risk = abs(suggestion.entry_price - suggestion.stop_loss)
+        realised = abs(
+            (position.exit_price or suggestion.entry_price) - suggestion.entry_price
+        )
+        actual_rr = round(realised / risk, 2) if risk > 0 else 0.0
 
         for signal_dict in suggestion.signals_fired:
             signal_name = signal_dict.get("signal_name")
-            timeframe   = signal_dict.get("timeframe", suggestion.timeframe)
+            timeframe = signal_dict.get("timeframe", suggestion.timeframe)
             if not signal_name:
                 continue
             try:
@@ -76,9 +78,9 @@ class OutcomeTracker:
         When a suggestion is skipped, still count it as a signal fired
         (so the denominator for execution rate is accurate).
         """
-        for signal_dict in (suggestion.signals_fired or []):
+        for signal_dict in suggestion.signals_fired or []:
             signal_name = signal_dict.get("signal_name")
-            timeframe   = signal_dict.get("timeframe", suggestion.timeframe)
+            timeframe = signal_dict.get("timeframe", suggestion.timeframe)
             if not signal_name:
                 continue
             try:

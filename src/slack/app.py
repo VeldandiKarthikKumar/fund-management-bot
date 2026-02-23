@@ -16,6 +16,7 @@ Schedule (IST, Mon–Fri):
   09:15, 10:15, 11:15, 12:15, 13:15, 14:15, 15:15  — Hourly swing monitor
   15:35  — Post-market pipeline (EOD reconciliation + learning)
 """
+
 import logging
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -46,22 +47,26 @@ register_position_actions(app)
 
 # ── Pipeline functions ────────────────────────────────────────────────────
 
+
 def _run_broker_sync():
     """Standalone broker sync — runs before the morning screen and on demand."""
     from src.broker import get_broker
     from src.broker.sync import run_sync
     from src.db.connection import get_session
     from src.db.repositories.performance import PerformanceRepository
+
     try:
         broker = get_broker()
         with get_session() as session:
-            perf_repo    = PerformanceRepository(session)
-            journal      = perf_repo.get_or_create_today()
+            perf_repo = PerformanceRepository(session)
+            journal = perf_repo.get_or_create_today()
             last_balance = journal.fund_balance_inr or 0.0
-            result       = run_sync(broker, session, last_known_balance=last_balance)
+            result = run_sync(broker, session, last_known_balance=last_balance)
             if result.fund_balance_inr:
                 journal.fund_balance_inr = result.fund_balance_inr
-                journal.fund_added_inr   = (journal.fund_added_inr or 0.0) + max(0.0, result.fund_change_inr)
+                journal.fund_added_inr = (journal.fund_added_inr or 0.0) + max(
+                    0.0, result.fund_change_inr
+                )
         if result.has_position_changes or result.has_fund_change:
             notifier.post_sync_alert(app.client, result)
     except Exception as e:
@@ -70,6 +75,7 @@ def _run_broker_sync():
 
 def _run_pre_market():
     from src.pipelines.pre_market import run
+
     try:
         result = run()
         notifier.post_pre_market_brief(app.client, result["brief"])
@@ -82,6 +88,7 @@ def _run_pre_market():
 def _run_swing_monitor():
     """Hourly swing monitor — broker sync + entry alerts + exit alerts."""
     from src.pipelines.intraday import run
+
     try:
         result = run()
         # Post sync alert if the broker sync found external changes
@@ -98,6 +105,7 @@ def _run_swing_monitor():
 
 def _run_post_market():
     from src.pipelines.post_market import run
+
     try:
         result = run()
         notifier.post_eod_review(app.client, result["review"])

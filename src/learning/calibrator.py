@@ -9,6 +9,7 @@ Rules:
 
 Weights are written to SignalPerformance table and loaded into config at startup.
 """
+
 import logging
 from datetime import datetime
 
@@ -18,13 +19,13 @@ from src.db.models import SignalPerformance
 logger = logging.getLogger(__name__)
 
 _MIN_TRADES_FOR_CALIBRATION = 10
-_HIGH_WIN_RATE  = 0.60
-_LOW_WIN_RATE   = 0.35
-_HIGH_AVG_PNL   = 1.5    # %
-_LOW_AVG_PNL    = -1.0   # %
-_WEIGHT_STEP    = 0.1
-_MAX_WEIGHT     = 2.0
-_MIN_WEIGHT     = 0.1
+_HIGH_WIN_RATE = 0.60
+_LOW_WIN_RATE = 0.35
+_HIGH_AVG_PNL = 1.5  # %
+_LOW_AVG_PNL = -1.0  # %
+_WEIGHT_STEP = 0.1
+_MAX_WEIGHT = 2.0
+_MIN_WEIGHT = 0.1
 
 
 def run() -> dict[str, float]:
@@ -50,8 +51,12 @@ def run() -> dict[str, float]:
             old_weight = sp.signal_weight
             new_weight = old_weight
 
-            high_performer = sp.win_rate >= _HIGH_WIN_RATE and sp.avg_pnl_pct >= _HIGH_AVG_PNL
-            low_performer  = sp.win_rate <= _LOW_WIN_RATE  or  sp.avg_pnl_pct <= _LOW_AVG_PNL
+            high_performer = (
+                sp.win_rate >= _HIGH_WIN_RATE and sp.avg_pnl_pct >= _HIGH_AVG_PNL
+            )
+            low_performer = (
+                sp.win_rate <= _LOW_WIN_RATE or sp.avg_pnl_pct <= _LOW_AVG_PNL
+            )
 
             if high_performer:
                 new_weight = min(_MAX_WEIGHT, old_weight + _WEIGHT_STEP)
@@ -66,7 +71,7 @@ def run() -> dict[str, float]:
                     f"(win_rate={sp.win_rate:.0%}, avg_pnl={sp.avg_pnl_pct:+.1f}%)"
                 )
 
-            sp.signal_weight   = new_weight
+            sp.signal_weight = new_weight
             sp.last_calibrated = datetime.utcnow()
             updated_weights[sp.signal_name] = new_weight
 

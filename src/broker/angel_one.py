@@ -11,9 +11,9 @@ TOTP is derived from ANGEL_ONE_TOTP_SECRET using pyotp — the same secret
 you scan into Google Authenticator / any TOTP app when enabling 2FA on your
 Angel One account.
 """
+
 import logging
 from datetime import datetime
-from functools import lru_cache
 from typing import Optional
 
 import pandas as pd
@@ -28,18 +28,16 @@ logger = logging.getLogger(__name__)
 # ── Interval mapping ──────────────────────────────────────────────────────────
 # BrokerBase uses Zerodha-style interval strings; map to SmartAPI equivalents.
 _INTERVAL_MAP = {
-    "5minute":   "FIVE_MINUTE",
-    "15minute":  "FIFTEEN_MINUTE",
-    "30minute":  "THIRTY_MINUTE",
-    "60minute":  "ONE_HOUR",
-    "day":       "ONE_DAY",
-    "week":      "ONE_DAY",   # SmartAPI has no weekly interval; use daily
+    "5minute": "FIVE_MINUTE",
+    "15minute": "FIFTEEN_MINUTE",
+    "30minute": "THIRTY_MINUTE",
+    "60minute": "ONE_HOUR",
+    "day": "ONE_DAY",
+    "week": "ONE_DAY",  # SmartAPI has no weekly interval; use daily
 }
 
 # Angel One publishes a full instrument master at this URL (refreshed nightly).
-_INSTRUMENT_MASTER_URL = (
-    "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
-)
+_INSTRUMENT_MASTER_URL = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
 
 
 class AngelOneAdapter(BrokerBase):
@@ -140,7 +138,9 @@ class AngelOneAdapter(BrokerBase):
         if not candles:
             return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
 
-        df = pd.DataFrame(candles, columns=["date", "open", "high", "low", "close", "volume"])
+        df = pd.DataFrame(
+            candles, columns=["date", "open", "high", "low", "close", "volume"]
+        )
         df["date"] = pd.to_datetime(df["date"])
         df = df.set_index("date").sort_index()
         return df
@@ -198,7 +198,9 @@ class AngelOneAdapter(BrokerBase):
             resp = requests.get(_INSTRUMENT_MASTER_URL, timeout=30)
             resp.raise_for_status()
             self._master = resp.json()
-            logger.info(f"Loaded {len(self._master)} instruments from Angel One master.")
+            logger.info(
+                f"Loaded {len(self._master)} instruments from Angel One master."
+            )
         except Exception as e:
             logger.error(f"Failed to load Angel One instrument master: {e}")
             self._master = []
@@ -209,6 +211,7 @@ class AngelOneAdapter(BrokerBase):
     def is_market_open(self) -> bool:
         """Use time-based check (IST 09:15–15:30) — avoids an extra API call."""
         import pytz
+
         now = datetime.now(pytz.timezone("Asia/Kolkata"))
         if now.weekday() >= 5:  # Saturday / Sunday
             return False

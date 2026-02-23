@@ -4,10 +4,10 @@ All broker-specific code lives in concrete adapters (e.g. zerodha.py).
 Pipelines and signals only depend on this interface — swap brokers without
 touching analysis logic.
 """
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import pandas as pd
 
@@ -28,7 +28,7 @@ class Quote:
     open: float
     high: float
     low: float
-    close: float          # Previous day close
+    close: float  # Previous day close
     volume: int
     timestamp: datetime
 
@@ -51,7 +51,7 @@ class BrokerBase(ABC):
     def get_historical_data(
         self,
         symbol: str,
-        interval: str,           # "day" | "week" | "60minute" | "15minute" | "5minute"
+        interval: str,  # "day" | "week" | "60minute" | "15minute" | "5minute"
         from_date: datetime,
         to_date: datetime,
         exchange: str = "NSE",
@@ -82,8 +82,9 @@ class BrokerBase(ABC):
     def get_positions(self) -> list[dict]:
         """Return intraday / short-term positions."""
 
-    def compute_quantity(self, capital: float, entry: float, stop: float,
-                          risk_pct: float) -> int:
+    def compute_quantity(
+        self, capital: float, entry: float, stop: float, risk_pct: float
+    ) -> int:
         """
         Position sizing via fixed-risk model.
         risk_pct: fraction of capital to risk (e.g. 0.015 for 1.5%)

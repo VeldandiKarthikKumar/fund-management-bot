@@ -2,9 +2,9 @@
 Unit tests for all signal implementations.
 Uses synthetic OHLCV data — no broker calls.
 """
+
 import numpy as np
 import pandas as pd
-import pytest
 
 from src.analysis.signals.ema_crossover import EMACrossoverSignal
 from src.analysis.signals.rsi import RSIDivergenceSignal
@@ -24,13 +24,16 @@ def _make_df(n: int = 120, trend: str = "up", base: float = 1000.0) -> pd.DataFr
         closes = base + np.random.normal(0, 5, n)
 
     closes = np.maximum(closes, 10)
-    df = pd.DataFrame({
-        "open":   closes * np.random.uniform(0.99, 1.01, n),
-        "high":   closes * np.random.uniform(1.00, 1.03, n),
-        "low":    closes * np.random.uniform(0.97, 1.00, n),
-        "close":  closes,
-        "volume": np.random.randint(100_000, 5_000_000, n),
-    }, index=dates)
+    df = pd.DataFrame(
+        {
+            "open": closes * np.random.uniform(0.99, 1.01, n),
+            "high": closes * np.random.uniform(1.00, 1.03, n),
+            "low": closes * np.random.uniform(0.97, 1.00, n),
+            "close": closes,
+            "volume": np.random.randint(100_000, 5_000_000, n),
+        },
+        index=dates,
+    )
     return df
 
 
@@ -93,8 +96,8 @@ class TestVolumeBreakout:
         df = _make_df(60, trend="up")
         # Force a high-volume bullish candle on the last row
         df.iloc[-1, df.columns.get_loc("volume")] = int(df["volume"].mean() * 5)
-        df.iloc[-1, df.columns.get_loc("close")]  = df["close"].iloc[-1] * 1.02
-        df.iloc[-1, df.columns.get_loc("open")]   = df["close"].iloc[-1] * 0.99
+        df.iloc[-1, df.columns.get_loc("close")] = df["close"].iloc[-1] * 1.02
+        df.iloc[-1, df.columns.get_loc("open")] = df["close"].iloc[-1] * 0.99
         result = signal.analyze(df, "TEST")
         if result:
             assert result.direction == "BUY"
@@ -112,8 +115,8 @@ class TestVolumeBreakout:
         signal = VolumeBreakoutSignal()
         df = _make_df(60, trend="up")
         df.iloc[-1, df.columns.get_loc("volume")] = int(df["volume"].mean() * 5)
-        df.iloc[-1, df.columns.get_loc("close")]  = df["close"].iloc[-1] * 1.02
-        df.iloc[-1, df.columns.get_loc("open")]   = df["close"].iloc[-1] * 0.99
+        df.iloc[-1, df.columns.get_loc("close")] = df["close"].iloc[-1] * 1.02
+        df.iloc[-1, df.columns.get_loc("open")] = df["close"].iloc[-1] * 0.99
         result = signal.analyze(df, "TEST")
         if result:
             assert result.entry > 0
