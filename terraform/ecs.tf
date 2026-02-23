@@ -37,12 +37,17 @@ resource "aws_ecs_task_definition" "slack_bot" {
     ]
 
     secrets = [
-      { name = "ZERODHA_API_KEY",       valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:ZERODHA_API_KEY::" },
-      { name = "ZERODHA_API_SECRET",    valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:ZERODHA_API_SECRET::" },
-      { name = "SLACK_BOT_TOKEN",       valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:SLACK_BOT_TOKEN::" },
-      { name = "SLACK_APP_TOKEN",       valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:SLACK_APP_TOKEN::" },
-      { name = "SLACK_SIGNING_SECRET",  valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:SLACK_SIGNING_SECRET::" },
-      { name = "SLACK_TRADING_CHANNEL", valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:SLACK_TRADING_CHANNEL::" },
+      { name = "BROKER",                 valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:BROKER::" },
+      { name = "ANGEL_ONE_API_KEY",      valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:ANGEL_ONE_API_KEY::" },
+      { name = "ANGEL_ONE_CLIENT_ID",    valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:ANGEL_ONE_CLIENT_ID::" },
+      { name = "ANGEL_ONE_PASSWORD",     valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:ANGEL_ONE_PASSWORD::" },
+      { name = "ANGEL_ONE_TOTP_SECRET",  valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:ANGEL_ONE_TOTP_SECRET::" },
+      { name = "ZERODHA_API_KEY",        valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:ZERODHA_API_KEY::" },
+      { name = "ZERODHA_API_SECRET",     valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:ZERODHA_API_SECRET::" },
+      { name = "SLACK_BOT_TOKEN",        valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:SLACK_BOT_TOKEN::" },
+      { name = "SLACK_APP_TOKEN",        valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:SLACK_APP_TOKEN::" },
+      { name = "SLACK_SIGNING_SECRET",   valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:SLACK_SIGNING_SECRET::" },
+      { name = "SLACK_TRADING_CHANNEL",  valueFrom = "${aws_secretsmanager_secret.bot_secrets.arn}:SLACK_TRADING_CHANNEL::" },
     ]
 
     logConfiguration = {
@@ -68,9 +73,9 @@ resource "aws_ecs_service" "slack_bot" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = data.aws_subnets.default.ids
+    subnets          = aws_subnet.private[*].id   # private subnets → NAT Gateway → static EIP
     security_groups  = [aws_security_group.ecs.id]
-    assign_public_ip = true
+    assign_public_ip = false
   }
 
   tags = local.common_tags

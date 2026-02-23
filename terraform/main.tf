@@ -70,15 +70,20 @@ resource "aws_secretsmanager_secret" "bot_secrets" {
 resource "aws_secretsmanager_secret_version" "bot_secrets" {
   secret_id = aws_secretsmanager_secret.bot_secrets.id
   secret_string = jsonencode({
-    ZERODHA_API_KEY       = var.zerodha_api_key
-    ZERODHA_API_SECRET    = var.zerodha_api_secret
-    ZERODHA_REDIRECT_URL  = var.zerodha_redirect_url
-    SLACK_BOT_TOKEN       = var.slack_bot_token
-    SLACK_APP_TOKEN       = var.slack_app_token
-    SLACK_SIGNING_SECRET  = var.slack_signing_secret
-    SLACK_TRADING_CHANNEL = var.slack_trading_channel
-    DB_PASSWORD           = var.db_password
-    FUND_SIZE_INR         = var.fund_size_inr
+    BROKER                 = var.broker
+    ANGEL_ONE_API_KEY      = var.angel_one_api_key
+    ANGEL_ONE_CLIENT_ID    = var.angel_one_client_id
+    ANGEL_ONE_PASSWORD     = var.angel_one_password
+    ANGEL_ONE_TOTP_SECRET  = var.angel_one_totp_secret
+    ZERODHA_API_KEY        = var.zerodha_api_key
+    ZERODHA_API_SECRET     = var.zerodha_api_secret
+    ZERODHA_REDIRECT_URL   = var.zerodha_redirect_url
+    SLACK_BOT_TOKEN        = var.slack_bot_token
+    SLACK_APP_TOKEN        = var.slack_app_token
+    SLACK_SIGNING_SECRET   = var.slack_signing_secret
+    SLACK_TRADING_CHANNEL  = var.slack_trading_channel
+    DB_PASSWORD            = var.db_password
+    FUND_SIZE_INR          = var.fund_size_inr
   })
 }
 
