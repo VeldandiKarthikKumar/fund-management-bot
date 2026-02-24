@@ -168,8 +168,86 @@ resource "aws_cloudwatch_log_group" "bot" {
   tags              = local.common_tags
 }
 
+# ── IAM — GitHub Actions OIDC role (CI/CD deploy) ────────────────────────
+
+resource "aws_iam_role" "github_actions" {
+  name = "${local.name_prefix}-github-actions"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+        }
+        StringLike = {
+          "token.actions.githubusercontent.com:sub" = "repo:VeldandiKarthikKumar/fund-management-bot:*"
+        }
+      }
+    }]
+  })
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy" "github_actions" {
+  name = "${local.name_prefix}-github-actions-policy"
+  role = aws_iam_role.github_actions.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ECRAuth"
+        Effect = "Allow"
+        Action = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Sid    = "ECRPush"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:PutImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+        ]
+        Resource = aws_ecr_repository.bot.arn
+      },
+      {
+        Sid    = "ECSdeploy"
+        Effect = "Allow"
+        Action = [
+          "ecs:UpdateService",
+          "ecs:DescribeServices",
+          "ecs:DescribeTaskDefinition",
+          "ecs:RegisterTaskDefinition",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "PassExecutionRole"
+        Effect = "Allow"
+        Action = ["iam:PassRole"]
+        Resource = [
+          aws_iam_role.ecs_task.arn,
+          aws_iam_role.ecs_execution.arn,
+        ]
+      }
+    ]
+  })
+}
+
+data "aws_caller_identity" "current" {}
+
 # ── Outputs ───────────────────────────────────────────────────────────────
 
-output "ecr_repository_url"    { value = aws_ecr_repository.bot.repository_url }
-output "s3_bucket_name"        { value = aws_s3_bucket.tokens.bucket }
-output "secrets_arn"           { value = aws_secretsmanager_secret.bot_secrets.arn }
+output "ecr_repository_url"       { value = aws_ecr_repository.bot.repository_url }
+output "s3_bucket_name"           { value = aws_s3_bucket.tokens.bucket }
+output "secrets_arn"              { value = aws_secretsmanager_secret.bot_secrets.arn }
+output "github_actions_role_arn"  { value = aws_iam_role.github_actions.arn }
