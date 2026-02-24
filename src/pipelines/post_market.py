@@ -101,6 +101,8 @@ def run() -> dict:
             if not quote:
                 continue
             price = quote.last_price
+            if pos.target is None or pos.current_stop is None:
+                continue
             hit_target = (pos.action == "BUY" and price >= pos.target) or (
                 pos.action == "SELL" and price <= pos.target
             )
