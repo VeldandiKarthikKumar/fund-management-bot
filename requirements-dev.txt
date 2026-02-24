@@ -11,6 +11,8 @@ factory-boy==3.3.0        # Test fixtures
 ruff==0.3.5
 black==24.3.0
 mypy==1.9.0
+types-requests==2.31.0.20240406
+types-pytz==2024.1.0.20240203
 
 # ── Local DB ───────────────────────────────────────────────────────────────
 # docker-compose handles postgres locally

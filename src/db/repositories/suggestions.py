@@ -41,6 +41,7 @@ class SuggestionRepository:
 
     def mark_executed(self, suggestion_id: int, notes: str = "") -> TradeSuggestion:
         s = self.get_by_id(suggestion_id)
+        assert s is not None, f"TradeSuggestion {suggestion_id} not found"
         s.status = SuggestionStatus.EXECUTED
         s.user_response_at = datetime.utcnow()
         s.user_notes = notes
@@ -48,6 +49,7 @@ class SuggestionRepository:
 
     def mark_skipped(self, suggestion_id: int, notes: str = "") -> TradeSuggestion:
         s = self.get_by_id(suggestion_id)
+        assert s is not None, f"TradeSuggestion {suggestion_id} not found"
         s.status = SuggestionStatus.SKIPPED
         s.user_response_at = datetime.utcnow()
         s.user_notes = notes

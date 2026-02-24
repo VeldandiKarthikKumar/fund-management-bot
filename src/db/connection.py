@@ -1,6 +1,7 @@
 """Database connection and session management."""
 
 from contextlib import contextmanager
+from typing import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -29,7 +30,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine()
 
 
 @contextmanager
-def get_session() -> Session:
+def get_session() -> Generator[Session, None, None]:
     """Context manager for DB sessions with automatic rollback on error."""
     session = SessionLocal()
     try:

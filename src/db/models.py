@@ -10,10 +10,10 @@ Tables:
 
 import enum
 from datetime import datetime
+from typing import Any, Optional
 
 from sqlalchemy import (
     Boolean,
-    Column,
     DateTime,
     Enum,
     Float,
@@ -24,7 +24,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
@@ -65,45 +65,45 @@ class TradeSuggestion(Base):
 
     __tablename__ = "trade_suggestions"
 
-    id = Column(Integer, primary_key=True)
-    date = Column(DateTime, nullable=False, default=datetime.utcnow)
-    symbol = Column(String(20), nullable=False, index=True)
-    action = Column(String(4), nullable=False)  # BUY | SELL
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    symbol: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(4), nullable=False)  # BUY | SELL
 
     # Prices
-    entry_price = Column(Float, nullable=False)
-    target_price = Column(Float, nullable=False)
-    stop_loss = Column(Float, nullable=False)
-    suggested_qty = Column(Integer, nullable=False)
-    risk_amount_inr = Column(Float, nullable=False)  # INR at risk
-    risk_reward = Column(Float, nullable=False)
+    entry_price: Mapped[float] = mapped_column(Float, nullable=False)
+    target_price: Mapped[float] = mapped_column(Float, nullable=False)
+    stop_loss: Mapped[float] = mapped_column(Float, nullable=False)
+    suggested_qty: Mapped[int] = mapped_column(Integer, nullable=False)
+    risk_amount_inr: Mapped[float] = mapped_column(Float, nullable=False)  # INR at risk
+    risk_reward: Mapped[float] = mapped_column(Float, nullable=False)
 
     # What triggered this suggestion
-    signals_fired = Column(
+    signals_fired: Mapped[list[dict[str, Any]]] = mapped_column(
         JSON, nullable=False
     )  # [{"name": "ema_crossover", "strength": 0.8, ...}]
-    composite_score = Column(Float, nullable=False)  # Weighted aggregate
-    timeframe = Column(String(10), nullable=False)  # daily | weekly
+    composite_score: Mapped[float] = mapped_column(Float, nullable=False)  # Weighted aggregate
+    timeframe: Mapped[str] = mapped_column(String(10), nullable=False)  # daily | weekly
 
     # Market context snapshot (for post-hoc analysis)
-    market_context = Column(
+    market_context: Mapped[Optional[dict[str, Any]]] = mapped_column(
         JSON
     )  # {"nifty_trend": "up", "vix": 14.2, "sector": "bullish"}
 
     # Slack threading
-    slack_ts = Column(
+    slack_ts: Mapped[Optional[str]] = mapped_column(
         String(50), index=True
     )  # Message timestamp (used to update/thread)
-    slack_channel = Column(String(50))
+    slack_channel: Mapped[Optional[str]] = mapped_column(String(50))
 
-    status = Column(
+    status: Mapped[SuggestionStatus] = mapped_column(
         Enum(SuggestionStatus), default=SuggestionStatus.PENDING, nullable=False
     )
-    user_response_at = Column(DateTime)
-    user_notes = Column(Text)  # Optional user comment
+    user_response_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    user_notes: Mapped[Optional[str]] = mapped_column(Text)  # Optional user comment
 
-    position = relationship("Position", back_populates="suggestion", uselist=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    position: Mapped[Optional["Position"]] = relationship("Position", back_populates="suggestion", uselist=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class Position(Base):
@@ -114,40 +114,40 @@ class Position(Base):
 
     __tablename__ = "positions"
 
-    id = Column(Integer, primary_key=True)
-    suggestion_id = Column(Integer, ForeignKey("trade_suggestions.id"), unique=True)
-    symbol = Column(String(20), nullable=False, index=True)
-    action = Column(String(4), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    suggestion_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("trade_suggestions.id"), unique=True)
+    symbol: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(4), nullable=False)
 
-    entry_price = Column(Float, nullable=False)
-    entry_date = Column(DateTime, nullable=False)
-    quantity = Column(Integer, nullable=False)
+    entry_price: Mapped[float] = mapped_column(Float, nullable=False)
+    entry_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Updated as trade progresses
-    current_stop = Column(Float)  # May be trailed up/down
-    target = Column(Float)
-    trailing_stop = Column(Boolean, default=False)
+    current_stop: Mapped[Optional[float]] = mapped_column(Float)  # May be trailed up/down
+    target: Mapped[Optional[float]] = mapped_column(Float)
+    trailing_stop: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
 
     # Set on close
-    exit_price = Column(Float)
-    exit_date = Column(DateTime)
-    exit_reason = Column(Enum(ExitReason))
-    pnl_inr = Column(Float)
-    pnl_pct = Column(Float)
-    held_days = Column(Integer)
+    exit_price: Mapped[Optional[float]] = mapped_column(Float)
+    exit_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    exit_reason: Mapped[Optional[ExitReason]] = mapped_column(Enum(ExitReason))
+    pnl_inr: Mapped[Optional[float]] = mapped_column(Float)
+    pnl_pct: Mapped[Optional[float]] = mapped_column(Float)
+    held_days: Mapped[Optional[int]] = mapped_column(Integer)
 
-    status = Column(Enum(PositionStatus), default=PositionStatus.OPEN, nullable=False)
+    status: Mapped[PositionStatus] = mapped_column(Enum(PositionStatus), default=PositionStatus.OPEN, nullable=False)
 
     # Slack thread for updates
-    slack_thread_ts = Column(String(50))
+    slack_thread_ts: Mapped[Optional[str]] = mapped_column(String(50))
 
     # True when the position was detected via broker sync — the user opened
     # this trade directly in the broker app without going through the bot.
-    is_externally_created = Column(Boolean, default=False)
+    is_externally_created: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
 
-    suggestion = relationship("TradeSuggestion", back_populates="position")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    suggestion: Mapped[Optional["TradeSuggestion"]] = relationship("TradeSuggestion", back_populates="position")
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class SignalPerformance(Base):
@@ -162,24 +162,24 @@ class SignalPerformance(Base):
         UniqueConstraint("signal_name", "timeframe", name="uq_signal_timeframe"),
     )
 
-    id = Column(Integer, primary_key=True)
-    signal_name = Column(String(50), nullable=False, index=True)
-    timeframe = Column(String(10), nullable=False)  # daily | weekly
+    id: Mapped[int] = mapped_column(primary_key=True)
+    signal_name: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    timeframe: Mapped[str] = mapped_column(String(10), nullable=False)
 
     # Rolling counters (last 90 days, updated incrementally)
-    total_signals = Column(Integer, default=0)
-    executed_signals = Column(Integer, default=0)  # How many were actually traded
-    winning_trades = Column(Integer, default=0)
-    win_rate = Column(Float, default=0.0)  # winning / executed
-    avg_pnl_pct = Column(Float, default=0.0)
-    avg_risk_reward = Column(Float, default=0.0)
-    avg_held_days = Column(Float, default=0.0)
+    total_signals: Mapped[int] = mapped_column(Integer, default=0)
+    executed_signals: Mapped[int] = mapped_column(Integer, default=0)  # How many were actually traded
+    winning_trades: Mapped[int] = mapped_column(Integer, default=0)
+    win_rate: Mapped[float] = mapped_column(Float, default=0.0)  # winning / executed
+    avg_pnl_pct: Mapped[float] = mapped_column(Float, default=0.0)
+    avg_risk_reward: Mapped[float] = mapped_column(Float, default=0.0)
+    avg_held_days: Mapped[float] = mapped_column(Float, default=0.0)
 
     # Composite quality score  (0–1), used to adjust weight in screener
-    signal_weight = Column(Float, default=1.0)
+    signal_weight: Mapped[float] = mapped_column(Float, default=1.0)
 
-    last_calibrated = Column(DateTime)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_calibrated: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class DailyJournal(Base):
@@ -192,32 +192,32 @@ class DailyJournal(Base):
     __tablename__ = "daily_journal"
     __table_args__ = (UniqueConstraint("date", name="uq_journal_date"),)
 
-    id = Column(Integer, primary_key=True)
-    date = Column(DateTime, nullable=False, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
 
     # Pre-market (07:30 AM)
-    nifty_trend = Column(String(20))  # bullish | bearish | sideways
-    vix_level = Column(Float)
-    sgx_nifty_gap = Column(Float)  # Overnight gap %
-    key_levels = Column(JSON)  # {"support": 22100, "resistance": 22400}
-    watchlist_snapshot = Column(JSON)  # Stocks flagged for swing setups today
-    pre_market_summary = Column(Text)  # Human-readable brief
+    nifty_trend: Mapped[Optional[str]] = mapped_column(String(20))  # bullish | bearish | sideways
+    vix_level: Mapped[Optional[float]] = mapped_column(Float)
+    sgx_nifty_gap: Mapped[Optional[float]] = mapped_column(Float)  # Overnight gap %
+    key_levels: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)  # {"support": 22100, "resistance": 22400}
+    watchlist_snapshot: Mapped[Optional[list[str]]] = mapped_column(JSON)  # Stocks flagged for swing setups today
+    pre_market_summary: Mapped[Optional[str]] = mapped_column(Text)  # Human-readable brief
 
     # Live (updated each hourly monitor run)
-    suggestions_sent = Column(Integer, default=0)
-    suggestions_executed = Column(Integer, default=0)
-    suggestions_skipped = Column(Integer, default=0)
+    suggestions_sent: Mapped[int] = mapped_column(Integer, default=0)
+    suggestions_executed: Mapped[int] = mapped_column(Integer, default=0)
+    suggestions_skipped: Mapped[int] = mapped_column(Integer, default=0)
 
     # Broker sync tracking
-    fund_balance_inr = Column(Float, default=0.0)  # Available margin at last sync
-    fund_added_inr = Column(Float, default=0.0)  # Net funds added today
-    last_sync_at = Column(DateTime)  # Timestamp of most recent broker sync
+    fund_balance_inr: Mapped[float] = mapped_column(Float, default=0.0)  # Available margin at last sync
+    fund_added_inr: Mapped[float] = mapped_column(Float, default=0.0)  # Net funds added today
+    last_sync_at: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Timestamp of most recent broker sync
 
     # Post-market (15:35 PM)
-    total_pnl_inr = Column(Float)
-    total_pnl_pct = Column(Float)
-    open_positions_count = Column(Integer, default=0)
-    post_market_review = Column(Text)  # What worked, what didn't
+    total_pnl_inr: Mapped[Optional[float]] = mapped_column(Float)
+    total_pnl_pct: Mapped[Optional[float]] = mapped_column(Float)
+    open_positions_count: Mapped[int] = mapped_column(Integer, default=0)
+    post_market_review: Mapped[Optional[str]] = mapped_column(Text)  # What worked, what didn't
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

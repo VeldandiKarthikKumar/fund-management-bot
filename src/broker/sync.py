@@ -154,10 +154,10 @@ def _sync_positions(
 
     # ── Case 2: In DB but gone from broker — external sell ────────────────
     for symbol, db_pos in db_map.items():
-        bp = broker_map.get(symbol)
-        if bp and bp["quantity"] > 0:
+        broker_pos = broker_map.get(symbol)
+        if broker_pos and broker_pos["quantity"] > 0:
             continue  # Still held — nothing to do
-        exit_price = (bp["ltp"] if bp else 0) or db_pos.target
+        exit_price = float((broker_pos["ltp"] if broker_pos else 0) or db_pos.target or db_pos.entry_price)
         try:
             pnl_inr = (exit_price - db_pos.entry_price) * db_pos.quantity
             pnl_pct = (exit_price - db_pos.entry_price) / db_pos.entry_price * 100

@@ -84,6 +84,7 @@ class PositionRepository:
         self, position_id: int, exit_price: float, reason: ExitReason
     ) -> Position:
         p = self.session.get(Position, position_id)
+        assert p is not None, f"Position {position_id} not found"
         p.exit_price = exit_price
         p.exit_date = datetime.utcnow()
         p.exit_reason = reason
@@ -100,6 +101,7 @@ class PositionRepository:
 
     def update_stop(self, position_id: int, new_stop: float) -> Position:
         p = self.session.get(Position, position_id)
+        assert p is not None, f"Position {position_id} not found"
         p.current_stop = new_stop
         return p
 

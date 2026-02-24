@@ -78,7 +78,7 @@ class Screener:
             for signal in self.signals:
                 try:
                     result = signal.analyze(df, symbol)
-                    if signal.is_valid(result):
+                    if result is not None and signal.is_valid(result):
                         fired.append(result)
                 except Exception as e:
                     logger.warning(f"Signal {signal.name} failed for {symbol}: {e}")

@@ -14,6 +14,8 @@ import logging
 
 from sqlalchemy.orm import Session
 
+from typing import Optional
+
 from src.db.models import Position, TradeSuggestion
 from src.db.repositories.performance import PerformanceRepository
 
@@ -34,7 +36,7 @@ class OutcomeTracker:
         if not position.suggestion_id:
             return
 
-        suggestion: TradeSuggestion = (
+        suggestion: Optional[TradeSuggestion] = (
             self.session.query(TradeSuggestion)
             .filter(TradeSuggestion.id == position.suggestion_id)
             .first()
