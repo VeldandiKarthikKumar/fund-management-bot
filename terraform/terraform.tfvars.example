@@ -2,16 +2,26 @@
 
 aws_region            = "ap-south-1"
 environment           = "prod"
+broker                = "angel_one"   # "angel_one" or "zerodha"
 
+# ── Angel One (required when broker = "angel_one") ────────────────────────
+angel_one_api_key     = "your_api_key"
+angel_one_client_id   = "A12345"        # Your Angel One login ID
+angel_one_password    = "your_pin"      # Your Angel One login PIN (4-6 digits)
+angel_one_totp_secret = "BASE32SECRET"  # Base32 secret shown when enabling 2FA
+
+# ── Zerodha (required when broker = "zerodha") ────────────────────────────
 zerodha_api_key       = "your_key"
 zerodha_api_secret    = "your_secret"
 zerodha_redirect_url  = "https://your-domain.com/zerodha/callback"
 
+# ── Slack ─────────────────────────────────────────────────────────────────
 slack_bot_token       = "xoxb-..."
 slack_app_token       = "xapp-..."
 slack_signing_secret  = "your-signing-secret"
 slack_trading_channel = "#trading-signals"
 
+# ── Database ──────────────────────────────────────────────────────────────
 db_username           = "fundbot"
 db_password           = "strong-password-here"
 fund_size_inr         = "500000"
