@@ -44,6 +44,11 @@ jobs:
       - name: Run tests
         env:
           DATABASE_URL: postgresql://fundbot:test@localhost:5432/fundbot_test
+          BROKER: angel_one
+          ANGEL_ONE_API_KEY: test_key
+          ANGEL_ONE_CLIENT_ID: A00000
+          ANGEL_ONE_PASSWORD: "0000"
+          ANGEL_ONE_TOTP_SECRET: JBSWY3DPEHPK3PXP   # valid base32, generates real TOTPs in tests
           ZERODHA_API_KEY: test_key
           ZERODHA_API_SECRET: test_secret
           ZERODHA_REDIRECT_URL: http://localhost/callback
