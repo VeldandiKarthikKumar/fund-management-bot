@@ -9,8 +9,14 @@ variable "angel_one_password"    { sensitive = true }
 variable "angel_one_totp_secret" { sensitive = true }
 
 # ── Zerodha (optional — only needed when broker = "zerodha") ──────────────
-variable "zerodha_api_key"      { sensitive = true; default = "" }
-variable "zerodha_api_secret"   { sensitive = true; default = "" }
+variable "zerodha_api_key" {
+  sensitive = true
+  default   = ""
+}
+variable "zerodha_api_secret" {
+  sensitive = true
+  default   = ""
+}
 variable "zerodha_redirect_url" { default = "" }
 
 # ── Slack ─────────────────────────────────────────────────────────────────
