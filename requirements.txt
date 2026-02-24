@@ -10,10 +10,10 @@ smartapi-python==1.3.8   # Angel One SmartAPI client
 pyotp==2.9.0             # TOTP generation for Angel One 2FA
 
 # ── Data & Analysis ────────────────────────────────────────────────────────
-pandas==2.2.1
-numpy==1.26.4
-pandas-ta==0.4.71b0      # Technical indicators (EMA, RSI, ATR, etc.) — requires Python 3.12+ for 0.4.x; pin to last working build
-scipy==1.12.0
+pandas==2.3.2
+numpy==2.2.6
+pandas-ta==0.4.71b0      # Technical indicators (EMA, RSI, ATR, etc.) — requires Python 3.12+
+scipy==1.14.1
 
 # ── Database ───────────────────────────────────────────────────────────────
 sqlalchemy==2.0.29
