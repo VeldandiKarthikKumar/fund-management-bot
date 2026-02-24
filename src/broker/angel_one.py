@@ -176,8 +176,11 @@ class AngelOneAdapter(BrokerBase):
             return self._instruments_cache[cache_key]
 
         master = self._load_instrument_master()
+        # Angel One stores NSE equities as "{SYMBOL}-EQ"; also try exact match
+        # for BSE or any exchange that uses the bare symbol.
+        candidates = (f"{symbol}-EQ", symbol)
         for entry in master:
-            if entry.get("symbol") == symbol and entry.get("exch_seg") == exchange:
+            if entry.get("exch_seg") == exchange and entry.get("symbol") in candidates:
                 instrument = Instrument(
                     symbol=symbol,
                     token=int(entry["token"]),
