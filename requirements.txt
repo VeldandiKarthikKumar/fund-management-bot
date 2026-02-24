@@ -7,6 +7,7 @@ uvicorn[standard]==0.29.0
 # ── Broker ─────────────────────────────────────────────────────────────────
 kiteconnect==5.0.1
 smartapi-python==1.3.8   # Angel One SmartAPI client
+websocket-client==1.8.0  # Required by smartapi-python (kiteconnect 5.x no longer pulls it in)
 pyotp==2.9.0             # TOTP generation for Angel One 2FA
 
 # ── Data & Analysis ────────────────────────────────────────────────────────
