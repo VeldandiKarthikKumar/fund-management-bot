@@ -48,17 +48,25 @@ class Screener:
         self.signals = _build_signals()
         self.settings = get_settings()
 
-    def run(self, symbols: Optional[list[str]] = None) -> list[ScreenerResult]:
+    def run(
+        self,
+        symbols: Optional[list[str]] = None,
+        to_date: Optional[datetime] = None,
+    ) -> list[ScreenerResult]:
         """
         Screen all symbols, run signals, compute weighted composite score,
         and return results sorted by score descending.
+
+        `to_date` defaults to now. Pass `datetime.combine(date.today(),
+        datetime.min.time())` when calling during market hours to exclude
+        today's incomplete candle from signal calculations.
         """
         symbols = symbols or self.settings.watchlist
         weights = self.settings.signal_weights
         results: list[ScreenerResult] = []
 
-        from_date = datetime.now() - timedelta(days=180)
-        to_date = datetime.now()
+        to_date = to_date or datetime.now()
+        from_date = to_date - timedelta(days=180)
 
         for symbol in symbols:
             try:

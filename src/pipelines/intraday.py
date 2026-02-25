@@ -12,7 +12,7 @@ orders, not market orders. The bot suggests the zone; the user sets the order.
 """
 
 import logging
-from datetime import datetime
+from datetime import date, datetime
 
 from src.broker import get_broker
 from src.broker.sync import run_sync
@@ -76,6 +76,10 @@ def run() -> dict:
     now = datetime.now()
     logger.info(f"Swing monitor at {now.strftime('%H:%M')}")
 
+    # Cap daily-signal data at yesterday's close so signals always run on
+    # complete candles — today's live candle is excluded during market hours.
+    closed_to_date = datetime.combine(date.today(), datetime.min.time())
+
     broker = get_broker()
     settings = get_settings()
 
@@ -100,10 +104,13 @@ def run() -> dict:
         # ── 2. Live quotes ───────────────────────────────────────────────────
         watchlist = journal.watchlist_snapshot or []
         if not watchlist:
-            logger.info("No pre-market watchlist found; running quick screen")
+            logger.info("No pre-market watchlist; running recovery screen on prior-day data")
             screener = Screener(broker)
-            setups = screener.run()
+            setups = screener.run(to_date=closed_to_date)
             watchlist = [s.symbol for s in setups[:10]]
+            # Persist so subsequent hourly runs skip this recovery screen
+            journal.watchlist_snapshot = watchlist
+            logger.info(f"Recovery screen saved {len(watchlist)} symbols to today's watchlist")
 
         try:
             quotes = broker.get_quote(watchlist)
@@ -120,7 +127,7 @@ def run() -> dict:
 
         if open_count < settings.max_open_positions:
             screener = Screener(broker)
-            setups = screener.run(symbols=watchlist)
+            setups = screener.run(symbols=watchlist, to_date=closed_to_date)
 
             already_suggested = {s.symbol for s in sugg_repo.get_pending_today()}
 
