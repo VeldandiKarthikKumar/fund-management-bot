@@ -61,7 +61,6 @@ def _assess_nifty_trend(broker) -> tuple[str, float]:
 def _get_vix(broker) -> float:
     try:
         quotes = broker.get_quote(["INDIA VIX"], exchange="NSE")
-        return quotes.get("INDIA VIX", None)
         if quotes:
             return list(quotes.values())[0].last_price
         return 0.0

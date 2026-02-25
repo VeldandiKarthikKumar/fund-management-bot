@@ -176,11 +176,15 @@ class AngelOneAdapter(BrokerBase):
             return self._instruments_cache[cache_key]
 
         master = self._load_instrument_master()
-        # Angel One stores NSE equities as "{SYMBOL}-EQ"; also try exact match
-        # for BSE or any exchange that uses the bare symbol.
-        candidates = (f"{symbol}-EQ", symbol)
+        # Angel One naming conventions:
+        #   Standard equity : {SYMBOL}-EQ  (e.g. "RELIANCE-EQ")
+        #   T2T/BE segment  : {SYMBOL}-BE  (e.g. "TATAMOTORS-BE")
+        #   Indices         : mixed-case bare name (e.g. "Nifty 50", "India VIX")
+        # Use upper-case comparison to handle mixed-case index names in the master.
+        symbol_upper = symbol.upper()
+        candidates = {f"{symbol_upper}-EQ", f"{symbol_upper}-BE", symbol_upper}
         for entry in master:
-            if entry.get("exch_seg") == exchange and entry.get("symbol") in candidates:
+            if entry.get("exch_seg") == exchange and entry.get("symbol", "").upper() in candidates:
                 instrument = Instrument(
                     symbol=symbol,
                     token=int(entry["token"]),
