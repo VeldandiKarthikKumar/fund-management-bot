@@ -18,6 +18,7 @@ from src.broker import get_broker
 from src.broker.sync import run_sync
 from src.analysis.screener import Screener
 from src.config import get_settings
+from src.market.universe import get_nifty200_symbols
 from src.db.connection import get_session
 from src.db.repositories.performance import PerformanceRepository
 from src.db.repositories.positions import PositionRepository
@@ -106,7 +107,7 @@ def run() -> dict:
         if not watchlist:
             logger.info("No pre-market watchlist; running recovery screen on prior-day data")
             screener = Screener(broker)
-            setups = screener.run(to_date=closed_to_date)
+            setups = screener.run(symbols=get_nifty200_symbols(), to_date=closed_to_date)
             watchlist = [s.symbol for s in setups[:10]]
             # Persist so subsequent hourly runs skip this recovery screen
             journal.watchlist_snapshot = watchlist

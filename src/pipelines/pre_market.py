@@ -3,7 +3,7 @@ Pre-market pipeline  —  runs at 07:30 AM IST every trading day.
 
 What it does:
   1. Fetches Nifty 50 trend, VIX, and SGX Nifty gap
-  2. Runs full watchlist screen (Nifty 50 + Midcap 50)
+  2. Runs full Nifty 200 screen (fetched live from NSE)
   3. Identifies key support/resistance levels for today
   4. Builds a prioritised watchlist for intraday monitoring
   5. Posts a morning briefing to Slack
@@ -18,6 +18,7 @@ import pandas_ta as ta
 from src.broker import get_broker
 from src.analysis.screener import Screener, ScreenerResult
 from src.db.connection import get_session
+from src.market.universe import get_nifty200_symbols
 from src.db.repositories.performance import PerformanceRepository
 from src.db.repositories.suggestions import SuggestionRepository
 
@@ -116,9 +117,9 @@ def run():
     trend, vix = _assess_nifty_trend(broker)
     logger.info(f"Nifty trend: {trend}, VIX: {vix}")
 
-    # 2. Screen full watchlist
+    # 2. Screen full Nifty 200 universe
     screener = Screener(broker)
-    all_setups = screener.run()
+    all_setups = screener.run(symbols=get_nifty200_symbols())
 
     # 3. Take top 10 for watchlist, top 5 for briefing
     top_10 = all_setups[:10]
