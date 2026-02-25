@@ -78,7 +78,8 @@ class Settings(BaseSettings):
         "POWERGRID",
         "ONGC",
         "JSWSTEEL",
-        "TATAMOTORS",
+        "TMPV",   # Tata Motors Passenger Vehicles (post-demerger, replaces TATAMOTORS)
+        "TMCV",   # Tata Motors Commercial Vehicles (post-demerger)
         "TECHM",
         "HCLTECH",
         "BAJAJFINSV",
