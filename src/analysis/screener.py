@@ -61,7 +61,7 @@ class Screener:
         datetime.min.time())` when calling during market hours to exclude
         today's incomplete candle from signal calculations.
         """
-        symbols = symbols or self.settings.watchlist
+        symbols = self.settings.watchlist if symbols is None else symbols
         weights = self.settings.signal_weights
         results: list[ScreenerResult] = []
 
