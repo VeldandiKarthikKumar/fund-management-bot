@@ -62,11 +62,18 @@ class Screener:
         today's incomplete candle from signal calculations.
         """
         symbols = self.settings.watchlist if symbols is None else symbols
+        if not symbols:
+            return []
         weights = self.settings.signal_weights
         results: list[ScreenerResult] = []
 
         to_date = to_date or datetime.now()
         from_date = to_date - timedelta(days=180)
+
+        # Pre-resolve symbol tokens and log the mapping before fetching data.
+        # Catches bad/missing tokens early and avoids per-symbol master scans.
+        if hasattr(self.broker, "warm_instrument_cache"):
+            self.broker.warm_instrument_cache(symbols)
 
         n_fetch_error = 0
         n_insufficient = 0

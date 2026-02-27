@@ -70,8 +70,10 @@ class AngelOneAdapter(BrokerBase):
 
         # In-memory instrument cache: symbol → Instrument
         self._instruments_cache: dict[str, Instrument] = {}
-        # Full master list loaded lazily
+        # Full master list + O(1) index, loaded lazily
         self._master: Optional[list[dict]] = None
+        # Index: (exch_seg_upper, symbol_upper) → master entry
+        self._master_index: dict[tuple[str, str], dict] = {}
         # Guard: attempt re-auth at most once per adapter instance lifetime
         self._reauth_attempted: bool = False
         # Sliding-window rate limiter for historical data: Angel One allows
@@ -218,43 +220,87 @@ class AngelOneAdapter(BrokerBase):
         if cache_key in self._instruments_cache:
             return self._instruments_cache[cache_key]
 
-        master = self._load_instrument_master()
+        self._load_instrument_master()
+        symbol_upper = symbol.upper()
         # Angel One naming conventions:
         #   Standard equity : {SYMBOL}-EQ  (e.g. "RELIANCE-EQ")
         #   T2T/BE segment  : {SYMBOL}-BE  (e.g. "TATAMOTORS-BE")
         #   Indices         : mixed-case bare name (e.g. "Nifty 50", "India VIX")
-        # Use upper-case comparison to handle mixed-case index names in the master.
-        symbol_upper = symbol.upper()
-        candidates = {f"{symbol_upper}-EQ", f"{symbol_upper}-BE", symbol_upper}
-        for entry in master:
-            if entry.get("exch_seg") == exchange and entry.get("symbol", "").upper() in candidates:
-                instrument = Instrument(
-                    symbol=symbol,
-                    token=int(entry["token"]),
-                    exchange=exchange,
-                    lot_size=int(entry.get("lotsize", 1)),
-                    tick_size=float(entry.get("tick_size", 0.05)),
-                )
-                self._instruments_cache[cache_key] = instrument
-                return instrument
+        # Prefer -EQ (regular equity) over -BE (trade-to-trade), then bare name.
+        entry = None
+        matched_name = None
+        for candidate in [f"{symbol_upper}-EQ", f"{symbol_upper}-BE", symbol_upper]:
+            entry = self._master_index.get((exchange.upper(), candidate))
+            if entry:
+                matched_name = candidate
+                break
 
-        raise ValueError(f"Instrument not found: {exchange}:{symbol}")
+        if not entry:
+            raise ValueError(f"Instrument not found: {exchange}:{symbol}")
 
-    def _load_instrument_master(self) -> list[dict]:
-        """Fetch and cache the Angel One instrument master JSON."""
+        instrument = Instrument(
+            symbol=symbol,
+            token=int(entry["token"]),
+            exchange=exchange,
+            lot_size=int(entry.get("lotsize", 1)),
+            tick_size=float(entry.get("tick_size", 0.05)),
+        )
+        logger.debug(
+            f"Token resolved: {exchange}:{symbol} → {matched_name} token={instrument.token}"
+        )
+        self._instruments_cache[cache_key] = instrument
+        return instrument
+
+    def warm_instrument_cache(self, symbols: list[str], exchange: str = "NSE") -> None:
+        """
+        Pre-resolve and cache symbol tokens for all given symbols.
+        Logs the full symbol→token map at INFO level so tokens can be audited,
+        and warns about any symbols not found in the master.
+        Call this once before a screener run to catch bad tokens early.
+        """
+        self._load_instrument_master()
+        token_map: dict[str, int] = {}
+        missing: list[str] = []
+        for symbol in symbols:
+            try:
+                instrument = self.get_instrument(symbol, exchange)
+                token_map[symbol] = instrument.token
+            except ValueError:
+                missing.append(symbol)
+
+        logger.info(
+            f"Symbol tokens resolved: {len(token_map)}/{len(symbols)} found. "
+            + (f"Missing: {missing}" if missing else "All symbols found.")
+        )
+        if token_map:
+            token_list = ", ".join(f"{s}={t}" for s, t in sorted(token_map.items()))
+            logger.debug(f"Token map: {token_list}")
+
+    def _load_instrument_master(self) -> None:
+        """Fetch and cache the Angel One instrument master JSON, building an O(1) index."""
         if self._master is not None:
-            return self._master
+            return
         try:
             resp = requests.get(_INSTRUMENT_MASTER_URL, timeout=30)
             resp.raise_for_status()
             self._master = resp.json()
+            # Build index: (exch_seg_upper, symbol_upper) → entry
+            # For any duplicate keys, prefer the -EQ entry over -BE.
+            for entry in self._master:
+                key = (
+                    entry.get("exch_seg", "").upper(),
+                    entry.get("symbol", "").upper(),
+                )
+                existing = self._master_index.get(key)
+                if existing is None or entry.get("symbol", "").upper().endswith("-EQ"):
+                    self._master_index[key] = entry
             logger.info(
-                f"Loaded {len(self._master)} instruments from Angel One master."
+                f"Loaded {len(self._master)} instruments from Angel One master "
+                f"({len(self._master_index)} unique keys indexed)."
             )
         except Exception as e:
             logger.error(f"Failed to load Angel One instrument master: {e}")
             self._master = []
-        return self._master
 
     # ── Portfolio ─────────────────────────────────────────────────────────────
 
