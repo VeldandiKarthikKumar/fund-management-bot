@@ -206,7 +206,9 @@ class AngelOneAdapter(BrokerBase):
                     tradingsymbol=symbol,
                     symboltoken=str(instrument.token),
                 )
-                d = raw.get("data", {})
+                if not raw.get("status"):
+                    raise RuntimeError(raw.get("message", "ltpData failed"))
+                d = raw.get("data") or {}
                 result[symbol] = Quote(
                     symbol=symbol,
                     last_price=float(d.get("ltp", 0)),
