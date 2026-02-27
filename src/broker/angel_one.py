@@ -13,6 +13,8 @@ Angel One account.
 """
 
 import logging
+import time
+from collections import deque
 from datetime import datetime
 from typing import Optional
 
@@ -72,6 +74,9 @@ class AngelOneAdapter(BrokerBase):
         self._master: Optional[list[dict]] = None
         # Guard: attempt re-auth at most once per adapter instance lifetime
         self._reauth_attempted: bool = False
+        # Sliding-window rate limiter for historical data: Angel One allows
+        # max 3 getCandleData calls/second, 180/minute, 5000/hour.
+        self._hist_call_times: deque = deque()
 
         # Auto-authenticate if a stored token exists
         if settings.angel_one_jwt_token:
@@ -115,6 +120,22 @@ class AngelOneAdapter(BrokerBase):
         logger.warning("Angel One session expired; re-authenticating.")
         self.authenticate()
 
+    def _throttle_historical(self) -> None:
+        """Enforce ≤3 getCandleData calls per second (Angel One rate limit)."""
+        now = time.monotonic()
+        # Drop timestamps older than 1 second
+        while self._hist_call_times and now - self._hist_call_times[0] >= 1.0:
+            self._hist_call_times.popleft()
+        # If at the per-second cap, sleep until the oldest slot expires
+        if len(self._hist_call_times) >= 3:
+            sleep_for = 1.0 - (now - self._hist_call_times[0]) + 0.02
+            if sleep_for > 0:
+                time.sleep(sleep_for)
+            now = time.monotonic()
+            while self._hist_call_times and now - self._hist_call_times[0] >= 1.0:
+                self._hist_call_times.popleft()
+        self._hist_call_times.append(time.monotonic())
+
     # ── Market data ───────────────────────────────────────────────────────────
 
     def get_historical_data(
@@ -136,6 +157,11 @@ class AngelOneAdapter(BrokerBase):
             "todate": to_date.strftime("%Y-%m-%d %H:%M"),
         }
 
+        logger.debug(
+            f"getCandleData {symbol} token={instrument.token} "
+            f"{historic_param['fromdate']} → {historic_param['todate']}"
+        )
+        self._throttle_historical()
         try:
             response = self._obj.getCandleData(historic_param)
         except Exception as e:
