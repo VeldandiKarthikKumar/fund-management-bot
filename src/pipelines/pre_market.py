@@ -118,8 +118,12 @@ def run():
     logger.info(f"Nifty trend: {trend}, VIX: {vix}")
 
     # 2. Screen full Nifty 200 universe
+    # Filter to BUY only — Angel One CNC mode does not support overnight short-selling.
+    # SELL direction is only valid for closing existing long positions (handled by exit alerts).
     screener = Screener(broker)
-    all_setups = screener.run(symbols=get_nifty200_symbols())
+    all_setups = [
+        s for s in screener.run(symbols=get_nifty200_symbols()) if s.direction == "BUY"
+    ]
 
     # 3. Take top 10 for watchlist, top 5 for briefing
     top_10 = all_setups[:10]

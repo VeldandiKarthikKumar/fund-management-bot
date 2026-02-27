@@ -107,7 +107,11 @@ def run() -> dict:
         if not watchlist:
             logger.info("No pre-market watchlist; running recovery screen on prior-day data")
             screener = Screener(broker)
-            setups = screener.run(symbols=get_nifty200_symbols(), to_date=closed_to_date)
+            # BUY-only: Angel One CNC does not support overnight short-selling.
+            setups = [
+                s for s in screener.run(symbols=get_nifty200_symbols(), to_date=closed_to_date)
+                if s.direction == "BUY"
+            ]
             watchlist = [s.symbol for s in setups[:10]]
             # Persist so subsequent hourly runs skip this recovery screen
             journal.watchlist_snapshot = watchlist
@@ -128,7 +132,11 @@ def run() -> dict:
 
         if open_count < settings.max_open_positions:
             screener = Screener(broker)
-            setups = screener.run(symbols=watchlist, to_date=closed_to_date)
+            # BUY-only: Angel One CNC does not support overnight short-selling.
+            setups = [
+                s for s in screener.run(symbols=watchlist, to_date=closed_to_date)
+                if s.direction == "BUY"
+            ]
 
             already_suggested = {s.symbol for s in sugg_repo.get_pending_today()}
 
