@@ -81,7 +81,7 @@ def register_suggestion_actions(app: App):
                 mrkdwn=True,
             )
 
-        logger.info(f"Trade executed: {s.symbol} {s.action} by {user}")
+            logger.info(f"Trade executed: {s.symbol} {s.action} by {user}")
 
     @app.action("skip_trade")
     def handle_skip(ack, body, say, client):
@@ -113,7 +113,7 @@ def register_suggestion_actions(app: App):
                 ],
             )
 
-        logger.info(f"Trade skipped: {s.symbol} by {user}")
+            logger.info(f"Trade skipped: {s.symbol} by {user}")
 
     @app.action("more_info")
     def handle_more_info(ack, body, say):
