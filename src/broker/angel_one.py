@@ -70,6 +70,8 @@ class AngelOneAdapter(BrokerBase):
         self._instruments_cache: dict[str, Instrument] = {}
         # Full master list loaded lazily
         self._master: Optional[list[dict]] = None
+        # Guard: attempt re-auth at most once per adapter instance lifetime
+        self._reauth_attempted: bool = False
 
         # Auto-authenticate if a stored token exists
         if settings.angel_one_jwt_token:
@@ -90,8 +92,13 @@ class AngelOneAdapter(BrokerBase):
             logger.error(f"Angel One authentication failed: {e}")
             raise
 
-        token_data = data.get("data", {})
+        token_data = data.get("data") or {}
         jwt_token = token_data.get("jwtToken", "")
+        if not jwt_token:
+            raise RuntimeError(
+                f"Angel One generateSession returned no token — "
+                f"status={data.get('status')}, message={data.get('message')}"
+            )
         self._feed_token = token_data.get("feedToken", "")
         self.set_access_token(jwt_token)
         logger.info("Angel One session created successfully.")
@@ -117,7 +124,6 @@ class AngelOneAdapter(BrokerBase):
         from_date: datetime,
         to_date: datetime,
         exchange: str = "NSE",
-        _retry: bool = True,
     ) -> pd.DataFrame:
         instrument = self.get_instrument(symbol, exchange)
         smartapi_interval = _INTERVAL_MAP.get(interval, "ONE_DAY")
@@ -138,12 +144,11 @@ class AngelOneAdapter(BrokerBase):
 
         if not response.get("status"):
             msg = response.get("message", "unknown error")
-            if _retry and "Invalid Token" in msg:
-                logger.warning("Angel One token invalid; re-authenticating and retrying.")
-                self.authenticate()
-                return self.get_historical_data(
-                    symbol, interval, from_date, to_date, exchange, _retry=False
-                )
+            if "Invalid Token" in msg and not self._reauth_attempted:
+                self._reauth_attempted = True
+                logger.warning("Angel One token invalid; re-authenticating (once).")
+                self.authenticate()  # raises on failure — propagates as fetch_error
+                return self.get_historical_data(symbol, interval, from_date, to_date, exchange)
             raise RuntimeError(f"getCandleData failed for {symbol}: {msg}")
 
         candles = response.get("data") or []
