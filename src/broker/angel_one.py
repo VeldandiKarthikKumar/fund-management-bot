@@ -117,6 +117,7 @@ class AngelOneAdapter(BrokerBase):
         from_date: datetime,
         to_date: datetime,
         exchange: str = "NSE",
+        _retry: bool = True,
     ) -> pd.DataFrame:
         instrument = self.get_instrument(symbol, exchange)
         smartapi_interval = _INTERVAL_MAP.get(interval, "ONE_DAY")
@@ -136,9 +137,15 @@ class AngelOneAdapter(BrokerBase):
             raise
 
         if not response.get("status"):
-            raise RuntimeError(
-                f"getCandleData failed for {symbol}: {response.get('message', 'unknown error')}"
-            )
+            msg = response.get("message", "unknown error")
+            if _retry and "Invalid Token" in msg:
+                logger.warning("Angel One token invalid; re-authenticating and retrying.")
+                self.authenticate()
+                return self.get_historical_data(
+                    symbol, interval, from_date, to_date, exchange, _retry=False
+                )
+            raise RuntimeError(f"getCandleData failed for {symbol}: {msg}")
+
         candles = response.get("data") or []
         if not candles:
             return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
