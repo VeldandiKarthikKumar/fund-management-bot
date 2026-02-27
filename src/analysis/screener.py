@@ -68,6 +68,12 @@ class Screener:
         to_date = to_date or datetime.now()
         from_date = to_date - timedelta(days=180)
 
+        n_fetch_error = 0
+        n_insufficient = 0
+        n_no_signal = 0
+        n_rr_fail: dict[str, int] = {}
+        n_consensus = 0
+
         for symbol in symbols:
             try:
                 df = self.broker.get_historical_data(
@@ -77,29 +83,42 @@ class Screener:
                     to_date=to_date,
                 )
                 if df.empty or len(df) < 60:
+                    logger.debug(f"{symbol}: insufficient data ({len(df)} bars), skipping")
+                    n_insufficient += 1
                     continue
             except Exception as e:
                 logger.warning(f"Failed to fetch data for {symbol}: {e}")
+                n_fetch_error += 1
                 continue
 
             fired: list[SignalResult] = []
             for signal in self.signals:
                 try:
                     result = signal.analyze(df, symbol)
-                    if result is not None and signal.is_valid(result):
+                    if result is None:
+                        continue
+                    if signal.is_valid(result):
                         fired.append(result)
+                    else:
+                        logger.debug(
+                            f"{symbol} [{signal.name}]: fired but failed validation "
+                            f"(R:R={result.risk_reward:.2f}, strength={result.strength:.2f})"
+                        )
+                        n_rr_fail[signal.name] = n_rr_fail.get(signal.name, 0) + 1
                 except Exception as e:
                     logger.warning(f"Signal {signal.name} failed for {symbol}: {e}")
 
             if not fired:
+                n_no_signal += 1
                 continue
 
             # All fired signals must agree on direction (no conflicting signals)
             directions = {s.direction for s in fired}
             if len(directions) > 1:
-                logger.debug(
+                logger.info(
                     f"{symbol}: conflicting signal directions {directions}, skipping"
                 )
+                n_consensus += 1
                 continue
 
             direction = fired[0].direction
@@ -128,5 +147,10 @@ class Screener:
             )
 
         results.sort(key=lambda r: r.composite_score, reverse=True)
-        logger.info(f"Screener found {len(results)} setups from {len(symbols)} symbols")
+        rr_summary = ", ".join(f"{k}={v}" for k, v in n_rr_fail.items()) or "0"
+        logger.info(
+            f"Screener found {len(results)} setups from {len(symbols)} symbols — "
+            f"fetch_errors={n_fetch_error}, insufficient_bars={n_insufficient}, "
+            f"no_signal={n_no_signal}, rr_fail={rr_summary}, consensus_conflict={n_consensus}"
+        )
         return results

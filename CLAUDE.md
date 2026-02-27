@@ -72,6 +72,7 @@ The bot runs as a single long-lived process: a **Slack Bolt app** (`src/slack/ap
 | `src/db/repositories/` | Data access layer (positions, suggestions, performance) |
 | `src/learning/tracker.py` | Records per-signal outcomes when a position closes |
 | `src/learning/calibrator.py` | Weekly weight adjustment (needs ≥10 trades; ±0.1 step, bounds 0.1–2.0) |
+| `src/market/universe.py` | Fetches live Nifty 200 symbols from NSE (`get_nifty200_symbols()`); used by pipelines as the primary watchlist source, with `config.py` as fallback |
 
 ### Infrastructure
 - **AWS**: ECS Fargate (single task), ECR (images), RDS PostgreSQL, S3 (token storage), Secrets Manager (all credentials), CloudWatch (logs).
