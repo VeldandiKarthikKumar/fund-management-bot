@@ -207,7 +207,14 @@ class AngelOneAdapter(BrokerBase):
                     symboltoken=str(instrument.token),
                 )
                 if not raw.get("status"):
-                    raise RuntimeError(raw.get("message", "ltpData failed"))
+                    msg = raw.get("message", "ltpData failed")
+                    if "Invalid Token" in msg and not self._reauth_attempted:
+                        self._reauth_attempted = True
+                        logger.warning("Angel One token invalid; re-authenticating (once).")
+                        self.authenticate()
+                        self._reauth_attempted = False
+                        return self.get_quote(symbols, exchange)
+                    raise RuntimeError(msg)
                 d = raw.get("data") or {}
                 result[symbol] = Quote(
                     symbol=symbol,
