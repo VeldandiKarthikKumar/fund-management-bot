@@ -106,6 +106,11 @@ class AngelOneAdapter(BrokerBase):
                 f"Angel One generateSession returned no token — "
                 f"status={data.get('status')}, message={data.get('message')}"
             )
+        # generateSession pre-pends "Bearer " to jwtToken in its return value,
+        # but SmartConnect._request() adds "Bearer " again when building the
+        # Authorization header. Strip it here so the header is correct.
+        if jwt_token.startswith("Bearer "):
+            jwt_token = jwt_token[len("Bearer "):]
         self._feed_token = token_data.get("feedToken", "")
         self.set_access_token(jwt_token)
         logger.info("Angel One session created successfully.")
@@ -176,6 +181,7 @@ class AngelOneAdapter(BrokerBase):
                 self._reauth_attempted = True
                 logger.warning("Angel One token invalid; re-authenticating (once).")
                 self.authenticate()  # raises on failure — propagates as fetch_error
+                self._reauth_attempted = False  # reset so future expiries in same session are handled
                 return self.get_historical_data(symbol, interval, from_date, to_date, exchange)
             raise RuntimeError(f"getCandleData failed for {symbol}: {msg}")
 
