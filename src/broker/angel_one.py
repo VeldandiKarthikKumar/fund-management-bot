@@ -201,7 +201,7 @@ class AngelOneAdapter(BrokerBase):
         for symbol in symbols:
             try:
                 instrument = self.get_instrument(symbol, exchange)
-                raw = self._obj.getLTP(
+                raw = self._obj.ltpData(
                     exchange=exchange,
                     tradingsymbol=symbol,
                     symboltoken=str(instrument.token),
@@ -214,7 +214,7 @@ class AngelOneAdapter(BrokerBase):
                     high=float(d.get("high", 0)),
                     low=float(d.get("low", 0)),
                     close=float(d.get("close", 0)),
-                    volume=0,  # getLTP does not return volume; fetch separately if needed
+                    volume=0,  # ltpData does not return volume
                     timestamp=datetime.now(),
                 )
             except Exception as e:
