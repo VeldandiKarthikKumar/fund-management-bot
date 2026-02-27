@@ -100,6 +100,7 @@ class AngelOneAdapter(BrokerBase):
     def set_access_token(self, token: str) -> None:
         """Load a previously obtained JWT token into the client."""
         self._jwt_token = token
+        self._obj.setAccessToken(token)
         self._obj.setSessionExpiryHook(self._on_session_expired)
 
     def _on_session_expired(self):
@@ -134,7 +135,11 @@ class AngelOneAdapter(BrokerBase):
             logger.error(f"Failed to fetch historical data for {symbol}: {e}")
             raise
 
-        candles = response.get("data", [])
+        if not response.get("status"):
+            raise RuntimeError(
+                f"getCandleData failed for {symbol}: {response.get('message', 'unknown error')}"
+            )
+        candles = response.get("data") or []
         if not candles:
             return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
 
