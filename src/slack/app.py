@@ -117,37 +117,42 @@ def _run_post_market():
 def start_scheduler():
     scheduler = BackgroundScheduler(timezone="Asia/Kolkata")
 
-    # Pre-market broker sync: 07:15 AM — before the morning screen
+    # NOTE: timezone must be set explicitly on each CronTrigger — APScheduler
+    # does NOT inherit it from BackgroundScheduler; it defaults to the system
+    # timezone (UTC on ECS Fargate) if omitted.
+    _IST = "Asia/Kolkata"
+
+    # Pre-market broker sync: 07:15 AM IST — before the morning screen
     # Catches overnight fund additions and corporate actions
     scheduler.add_job(
         _run_broker_sync,
-        CronTrigger(day_of_week="mon-fri", hour=7, minute=15),
+        CronTrigger(day_of_week="mon-fri", hour=7, minute=15, timezone=_IST),
         id="pre_market_sync",
         name="Pre-market broker sync",
     )
 
-    # Pre-market screen: 07:30 AM — Nifty assessment + full swing setup screen
+    # Pre-market screen: 07:30 AM IST — Nifty assessment + full swing setup screen
     scheduler.add_job(
         _run_pre_market,
-        CronTrigger(day_of_week="mon-fri", hour=7, minute=30),
+        CronTrigger(day_of_week="mon-fri", hour=7, minute=30, timezone=_IST),
         id="pre_market",
         name="Pre-market pipeline",
     )
 
-    # Hourly swing monitor: 09:15 through 15:15, Mon–Fri
+    # Hourly swing monitor: 09:15 through 15:15 IST, Mon–Fri
     # Swing trades don't need 15-minute polling — hourly is ample for
     # limit-order entries and daily-close-based stop/target tracking.
     scheduler.add_job(
         _run_swing_monitor,
-        CronTrigger(day_of_week="mon-fri", hour="9-15", minute=15),
+        CronTrigger(day_of_week="mon-fri", hour="9-15", minute=15, timezone=_IST),
         id="swing_monitor",
         name="Hourly swing monitor",
     )
 
-    # Post-market EOD review: 15:35 PM
+    # Post-market EOD review: 15:35 PM IST
     scheduler.add_job(
         _run_post_market,
-        CronTrigger(day_of_week="mon-fri", hour=15, minute=35),
+        CronTrigger(day_of_week="mon-fri", hour=15, minute=35, timezone=_IST),
         id="post_market",
         name="Post-market pipeline",
     )
