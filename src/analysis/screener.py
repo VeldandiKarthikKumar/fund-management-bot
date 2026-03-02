@@ -68,7 +68,7 @@ class Screener:
         results: list[ScreenerResult] = []
 
         to_date = to_date or datetime.now()
-        from_date = to_date - timedelta(days=180)
+        from_date = to_date - timedelta(days=120)
 
         # Pre-resolve symbol tokens and log the mapping before fetching data.
         # Catches bad/missing tokens early and avoids per-symbol master scans.
@@ -89,8 +89,8 @@ class Screener:
                     from_date=from_date,
                     to_date=to_date,
                 )
-                if df.empty or len(df) < 60:
-                    logger.debug(f"{symbol}: insufficient data ({len(df)} bars), skipping")
+                if df.empty or len(df) < 80:
+                    logger.debug(f"{symbol}: insufficient data ({len(df)} bars, need 80), skipping")
                     n_insufficient += 1
                     continue
             except Exception as e:
