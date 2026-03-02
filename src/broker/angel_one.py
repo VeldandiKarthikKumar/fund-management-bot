@@ -79,6 +79,7 @@ class AngelOneAdapter(BrokerBase):
         # Sliding-window rate limiter for historical data: Angel One allows
         # max 3 getCandleData calls/second, 180/minute, 5000/hour.
         self._hist_call_times: deque = deque()
+        self._hist_call_times_minute: deque = deque()
 
         # Auto-authenticate if a stored token exists
         if settings.angel_one_jwt_token:
@@ -128,20 +129,33 @@ class AngelOneAdapter(BrokerBase):
         self.authenticate()
 
     def _throttle_historical(self) -> None:
-        """Enforce ≤3 getCandleData calls per second (Angel One rate limit)."""
-        now = time.monotonic()
-        # Drop timestamps older than 1 second
-        while self._hist_call_times and now - self._hist_call_times[0] >= 1.0:
-            self._hist_call_times.popleft()
-        # If at the per-second cap, sleep until the oldest slot expires
-        if len(self._hist_call_times) >= 3:
-            sleep_for = 1.0 - (now - self._hist_call_times[0]) + 0.02
-            if sleep_for > 0:
-                time.sleep(sleep_for)
+        """Enforce ≤3 getCandleData calls/second and ≤180 calls/minute (Angel One limits)."""
+        # Per-second cap: loop until fewer than 3 calls in the last 1 second
+        while True:
             now = time.monotonic()
             while self._hist_call_times and now - self._hist_call_times[0] >= 1.0:
                 self._hist_call_times.popleft()
-        self._hist_call_times.append(time.monotonic())
+            if len(self._hist_call_times) < 3:
+                break
+            sleep_for = 1.0 - (now - self._hist_call_times[0]) + 0.02
+            if sleep_for > 0:
+                time.sleep(sleep_for)
+
+        # Per-minute cap: loop until fewer than 180 calls in the last 60 seconds
+        while True:
+            now = time.monotonic()
+            while self._hist_call_times_minute and now - self._hist_call_times_minute[0] >= 60.0:
+                self._hist_call_times_minute.popleft()
+            if len(self._hist_call_times_minute) < 180:
+                break
+            sleep_for = 60.0 - (now - self._hist_call_times_minute[0]) + 0.1
+            logger.info(f"Per-minute rate limit reached (180/min); sleeping {sleep_for:.1f}s")
+            if sleep_for > 0:
+                time.sleep(sleep_for)
+
+        now = time.monotonic()
+        self._hist_call_times.append(now)
+        self._hist_call_times_minute.append(now)
 
     # ── Market data ───────────────────────────────────────────────────────────
 
@@ -152,6 +166,7 @@ class AngelOneAdapter(BrokerBase):
         from_date: datetime,
         to_date: datetime,
         exchange: str = "NSE",
+        _retries: int = 2,
     ) -> pd.DataFrame:
         instrument = self.get_instrument(symbol, exchange)
         smartapi_interval = _INTERVAL_MAP.get(interval, "ONE_DAY")
@@ -183,6 +198,17 @@ class AngelOneAdapter(BrokerBase):
                 self.authenticate()  # raises on failure — propagates as fetch_error
                 self._reauth_attempted = False  # reset so future expiries in same session are handled
                 return self.get_historical_data(symbol, interval, from_date, to_date, exchange)
+            if "TooManyRequests" in msg and _retries > 0:
+                backoff = 2.0 * (3 - _retries)  # 0s, 2s on successive retries
+                logger.warning(
+                    f"TooManyRequests for {symbol}; backing off {backoff:.0f}s "
+                    f"({_retries} retries left)"
+                )
+                if backoff > 0:
+                    time.sleep(backoff)
+                return self.get_historical_data(
+                    symbol, interval, from_date, to_date, exchange, _retries=_retries - 1
+                )
             raise RuntimeError(f"getCandleData failed for {symbol}: {msg}")
 
         candles = response.get("data") or []
